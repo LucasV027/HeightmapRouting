@@ -15,13 +15,13 @@ struct Image {
         int w, h, bpp;
         stbi_uc* buf = stbi_load(path.string().c_str(), &w, &h, &bpp, STBI_grey);
 
+        if (!buf)
+            return false;
+
         width = w;
         height = h;
         data.resize(w * h);
         memcpy(data.data(), buf, w * h);
-
-        if (!buf)
-            return false;
 
         stbi_image_free(buf);
         return true;
@@ -43,6 +43,10 @@ public:
                 const std::function<float(const glm::vec2&)>& f);
 
     Triangulation Triangulate() const;
+
+    uint32_t Width() const { return size.x; }
+    uint32_t Height() const { return size.y; }
+    float* Data() { return heights.data(); }
 
 private:
     uint32_t Index(uint32_t x, uint32_t y) const;

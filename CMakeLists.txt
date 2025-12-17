@@ -11,5 +11,8 @@ list(APPEND SOURCES ${HEADERS})
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+target_include_directories(${PROJECT_NAME} PRIVATE src)
+target_compile_definitions(${PROJECT_NAME} PRIVATE DATA_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/data/\")
+
 add_subdirectory(vendor)
-target_link_libraries(${PROJECT_NAME} PRIVATE glm::glm stb)
+target_link_libraries(${PROJECT_NAME} PRIVATE glm::glm stb glfw glad)

@@ -4,7 +4,7 @@
 
 int main() {
     Image img;
-    if (!img.Load("../alps-montblanc.png")) {
+    if (!img.Load(DATA_DIR "Terrain/alps-montblanc.png")) {
         std::cerr << "Failed to load image" << std::endl;
         return 1;
     }
