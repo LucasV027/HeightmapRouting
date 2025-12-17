@@ -1,14 +1,17 @@
 #include "Mat.h"
 
-#include <stdexcept>
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 
-Mat::Mat(const uint32_t w, const uint32_t h, const float v) : width(w), height(h), data(w * h, v) {}
+Mat::Mat(const uint32_t w, const uint32_t h, const float v) : width(w), height(h), data(w * h, v) {
+}
 
-Mat::Mat(const Mat& other) : width(other.width), height(other.height), data(other.data) {}
+Mat::Mat(const Mat& other) : width(other.width), height(other.height), data(other.data) {
+}
 
-Mat::Mat(Mat&& other) noexcept : width(other.width), height(other.height), data(std::move(other.data)) {
+Mat::Mat(Mat&& other) noexcept :
+    width(other.width), height(other.height), data(std::move(other.data)) {
     other.width = 0;
     other.height = 0;
 }
@@ -115,9 +118,9 @@ Mat Mat::Normalize(const Mat& mat) {
 Mat Mat::Convolve(const Mat& mat, const glm::mat3& kernel) {
     Mat m(mat.width, mat.height, 0.0f);
 
-    for (uint32_t y  = 1; y < mat.height - 1; y++) {
+    for (uint32_t y = 1; y < mat.height - 1; y++) {
         for (uint32_t x = 1; x < mat.width - 1; x++) {
-            uint32_t i = m.Index(x,y);
+            uint32_t i = m.Index(x, y);
             m.data[i] += kernel[0][0] * 0.0f;
             m.data[i] += kernel[0][0] * 0.0f;
             m.data[i] += kernel[0][0] * 0.0f;
@@ -132,10 +135,6 @@ Mat Mat::Convolve(const Mat& mat, const glm::mat3& kernel) {
     }
 
     return m;
-
-
-
-
 }
 
 uint32_t Mat::Index(const uint32_t x, const uint32_t y) const {

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <vector>
-#include <functional>
 #include <filesystem>
+#include <functional>
+#include <vector>
 
 #include <glm/glm.hpp>
 #include <stb/stb_image.h>
@@ -32,14 +32,16 @@ struct Triangulation {
     std::vector<glm::vec3> vertices;
     std::vector<glm::uvec3> indices;
 
-    bool SaveOBJ(const std::filesystem::path& path);
+    bool SaveOBJ(const std::filesystem::path& path) const;
 };
 
 class ScalarField {
 public:
     ScalarField(const glm::uvec2& size, const glm::vec2& min, const glm::vec2& max);
     ScalarField(const Image& img, const glm::vec2& min, const glm::vec2& max, float maxHeight);
-    ScalarField(const glm::uvec2& size, const glm::vec2& min, const glm::vec2& max,
+    ScalarField(const glm::uvec2& size,
+                const glm::vec2& min,
+                const glm::vec2& max,
                 const std::function<float(const glm::vec2&)>& f);
 
     Triangulation Triangulate() const;

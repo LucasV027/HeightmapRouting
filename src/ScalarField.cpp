@@ -2,9 +2,10 @@
 
 #include <fstream>
 
-bool Triangulation::SaveOBJ(const std::filesystem::path& path) {
+bool Triangulation::SaveOBJ(const std::filesystem::path& path) const {
     std::ofstream out(path);
-    if (!out) return false;
+    if (!out)
+        return false;
 
     for (const auto& v : vertices)
         out << "v " << v.x << " " << v.y << " " << v.z << "\n";
@@ -16,15 +17,15 @@ bool Triangulation::SaveOBJ(const std::filesystem::path& path) {
 }
 
 ScalarField::ScalarField(const glm::uvec2& size, const glm::vec2& min, const glm::vec2& max) :
-    size(size),
-    min(min),
-    max(max),
-    delta((max - min) / glm::vec2(size - 1u)),
-    heights(size.x * size.y) {}
+    size(size), min(min), max(max), delta((max - min) / glm::vec2(size - 1u)),
+    heights(size.x * size.y) {
+}
 
-ScalarField::ScalarField(const Image& img, const glm::vec2& min, const glm::vec2& max, const float maxHeight) :
-    ScalarField(
-        glm::uvec2(img.width, img.height), min, max) {
+ScalarField::ScalarField(const Image& img,
+                         const glm::vec2& min,
+                         const glm::vec2& max,
+                         const float maxHeight) :
+    ScalarField(glm::uvec2(img.width, img.height), min, max) {
     for (uint32_t y = 0; y < size.y; y++) {
         for (uint32_t x = 0; x < size.x; x++) {
             heights[Index(x, y)] = img.data[Index(x, y)] / 255.0f * maxHeight;
@@ -35,7 +36,8 @@ ScalarField::ScalarField(const Image& img, const glm::vec2& min, const glm::vec2
 ScalarField::ScalarField(const glm::uvec2& size,
                          const glm::vec2& min,
                          const glm::vec2& max,
-                         const std::function<float(const glm::vec2&)>& f) : ScalarField(size, min, max) {
+                         const std::function<float(const glm::vec2&)>& f) :
+    ScalarField(size, min, max) {
     for (uint32_t y = 0; y < size.y; y++) {
         for (uint32_t x = 0; x < size.x; x++) {
             heights[Index(x, y)] = f(Point(x, y));
