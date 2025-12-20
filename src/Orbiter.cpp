@@ -1,10 +1,8 @@
 #include "Orbiter.h"
 
-#include "Window.h"
-
-#include <glm/gtc/quaternion.hpp>
-
 #include <imgui.h>
+
+#include "App.h"
 
 Orbiter::Orbiter(const glm::vec3& position, const float radius, const float aspect) :
     position(position), radius(radius), aspect(aspect) {
@@ -13,7 +11,7 @@ Orbiter::Orbiter(const glm::vec3& position, const float radius, const float aspe
 }
 
 void Orbiter::Update(const float dt) {
-    const auto& window = Window::Get();
+    const auto& window = App::GetWindow();
 
     const glm::vec3 forward(glm::sin(yaw), 0.0f, glm::cos(yaw));
     const glm::vec3 right(glm::cos(yaw), 0.0f, -glm::sin(yaw));

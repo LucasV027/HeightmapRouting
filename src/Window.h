@@ -14,14 +14,12 @@ public:
 
     GLFWwindow* Handle() const;
     bool ShouldClose() const;
+
     void Swap() const;
     void Poll() const;
-    void Close() const;
 
-    bool KeyState(int key, int state) const;
+    bool IsKeyInState(int key, int state) const;
     bool IsKeyPressed(int key) const;
-
-    static Window& Get();
 
 private:
     static void GLFWErrorCallback(int error, const char* description);

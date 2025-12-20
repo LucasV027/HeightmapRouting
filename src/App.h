@@ -12,6 +12,9 @@ public:
 
     void Run();
 
+    static App& Get();
+    static Window& GetWindow();
+
 private:
     static void InitOpenGL();
 

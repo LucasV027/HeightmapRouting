@@ -1,6 +1,13 @@
+#include <iostream>
+
 #include "App.h"
 
 int main() {
-    App app;
-    app.Run();
+    try {
+        App app;
+        app.Run();
+    } catch (std::exception& e) {
+        std::cerr << "[FATAL ERROR] " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 }

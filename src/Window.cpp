@@ -4,14 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 
-static Window* instance = nullptr;
-
 Window::Window(const int w, const int h, const std::string& title) {
-    if (instance)
-        throw std::runtime_error("Window already created");
-
-    instance = this;
-
     if (!glfwInit())
         throw std::runtime_error("Failed to initialize GLFW");
 
@@ -42,7 +35,6 @@ Window::Window(const int w, const int h, const std::string& title) {
 }
 
 Window::~Window() {
-    instance = nullptr;
     glfwDestroyWindow(window);
     glfwTerminate();
 }
@@ -64,21 +56,12 @@ void Window::Poll() const {
     glfwPollEvents();
 }
 
-void Window::Close() const {
-    glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
-
-bool Window::KeyState(const int key, const int state) const {
+bool Window::IsKeyInState(const int key, const int state) const {
     return keyStates[key] == state;
 }
 
 bool Window::IsKeyPressed(const int key) const {
     return glfwGetKey(window, key);
-}
-
-
-Window& Window::Get() {
-    return *instance;
 }
 
 void Window::GLFWErrorCallback(const int error, const char* description) {

@@ -12,7 +12,13 @@
 #include "Utils.h"
 #include "Window.h"
 
+static App* instance = nullptr;
+
 App::App() {
+    if (instance)
+        throw std::runtime_error("App already initialized");
+    instance = this;
+
     window = std::make_unique<Window>(1280, 720, "MMV");
     camera = std::make_unique<Orbiter>(glm::vec3(0.0f), 500.f, 1280.f / 720.f);
 
@@ -98,6 +104,8 @@ App::~App() {
     glDeleteBuffers(std::size(vbos), vbos);
     glDeleteTextures(1, &heightTex);
     glDeleteProgram(program);
+
+    instance = nullptr;
 }
 
 void App::Run() {
@@ -133,6 +141,14 @@ void App::Run() {
         window->Swap();
         window->Poll();
     }
+}
+
+App& App::Get() {
+    return *instance;
+}
+
+Window& App::GetWindow() {
+    return *instance->window;
 }
 
 void App::InitOpenGL() {
