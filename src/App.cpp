@@ -7,8 +7,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
+#include "Image.h"
+#include "Mat.h"
 #include "Orbiter.h"
-#include "ScalarField.h"
 #include "Utils.h"
 #include "Window.h"
 
@@ -20,90 +21,32 @@ App::App() {
     instance = this;
 
     window = std::make_unique<Window>(1280, 720, "MMV");
-    camera = std::make_unique<Orbiter>(glm::vec3(0.0f), 500.f, 1280.f / 720.f);
+    camera = std::make_unique<Orbiter>(glm::vec3(0.0f), 200.f, 1280.f / 720.f);
 
     InitOpenGL();
     InitImGui();
 
-    Image img;
-    if (!img.Load(DATA_DIR "Terrain/alps-montblanc.png")) {
-        std::cerr << "Failed to load image" << std::endl;
+    const auto img = Image::FromFile(DATA_DIR "Terrain/alps-montblanc.png");
+    if (!img.has_value()) {
         throw std::runtime_error("Failed to load image");
     }
 
-    ScalarField hm(img, glm::vec2{-500.0f, -500.0f}, glm::vec2{1000.f, 1000.f});
-    const PlanarGridMesh pgm = hm.GridMesh();
-    count = pgm.indices.size() * 3;
+    Mat<float> hm(*img);
 
+    const auto vertSrc = Utils::ReadFile(DATA_DIR "Shaders/Main.vert");
+    const auto fragSrc = Utils::ReadFile(DATA_DIR "Shaders/Main.frag");
+    program = Utils::GL::CreateProgram(vertSrc.c_str(), fragSrc.c_str());
 
-    {
-        const auto vertSrc = Utils::ReadFile(DATA_DIR "Shaders/Main.vert");
-        const auto fragSrc = Utils::ReadFile(DATA_DIR "Shaders/Main.frag");
-        program = Utils::GL::CreateProgram(vertSrc.c_str(), fragSrc.c_str());
-    }
+    heightTex = Utils::GL::CreateTexture(hm.Width(), hm.Height(), Utils::GL::TextureFormat::Float1,
+                                         hm.Data());
 
-
-    {
-        glCreateTextures(GL_TEXTURE_2D, 1, &heightTex);
-        glTextureStorage2D(heightTex, 1, GL_R16F, hm.Width(), hm.Height());
-        glTextureSubImage2D(heightTex, 0, 0, 0, hm.Width(), hm.Height(), GL_RED, GL_FLOAT,
-                            hm.Data());
-
-        glTextureParameteri(heightTex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTextureParameteri(heightTex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTextureParameteri(heightTex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTextureParameteri(heightTex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
-
-    {
-        auto& indices = pgm.indices;
-        auto& positions = pgm.positions;
-        auto& uvs = pgm.uvs;
-
-        glCreateVertexArrays(1, &vao);
-
-        // IBO
-        glCreateBuffers(1, &ibo);
-        glNamedBufferStorage(ibo, indices.size() * sizeof(indices[0]), indices.data(),
-                             GL_DYNAMIC_STORAGE_BIT);
-        glVertexArrayElementBuffer(vao, ibo);
-
-        // VBO - Positions
-        glCreateBuffers(1, &vboPos);
-        glNamedBufferStorage(vboPos, positions.size() * sizeof(positions[0]), positions.data(),
-                             GL_DYNAMIC_STORAGE_BIT);
-
-        // VBO - UV
-        glCreateBuffers(1, &vboUV);
-        glNamedBufferStorage(vboUV, uvs.size() * sizeof(uvs[0]), uvs.data(),
-                             GL_DYNAMIC_STORAGE_BIT);
-
-        // Bind VBO
-        glVertexArrayVertexBuffer(vao, 0, vboPos, 0, sizeof(positions[0]));
-        glVertexArrayVertexBuffer(vao, 1, vboUV, 0, sizeof(uvs[0]));
-
-        // Position (2 Floats | Location = 0)
-        glEnableVertexArrayAttrib(vao, 0);
-        glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
-        glVertexArrayAttribBinding(vao, 0, 0);
-
-        // UVs (2 Floats | Location = 1)
-        glEnableVertexArrayAttrib(vao, 1);
-        glVertexArrayAttribFormat(vao, 1, 2, GL_FLOAT, GL_FALSE, 0);
-        glVertexArrayAttribBinding(vao, 1, 1);
-    }
+    mesh = Mesh::PlanarGrid(hm.Size(), glm::vec2{-50.0f, -50.0f}, glm::vec2{50.f, 50.f});
 }
 
 App::~App() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-
-    glDeleteVertexArrays(1, &vao);
-    const GLuint vbos[] = {vboPos, vboUV, ibo};
-    glDeleteBuffers(std::size(vbos), vbos);
-    glDeleteTextures(1, &heightTex);
-    glDeleteProgram(program);
 
     instance = nullptr;
 }
@@ -115,19 +58,19 @@ void App::Run() {
 
         auto vp = camera->Proj() * camera->View();
 
-        glUseProgram(program);
-        glUniformMatrix4fv(glGetUniformLocation(program, "uVP"), 1, GL_FALSE, glm::value_ptr(vp));
-        glUniform1i(glGetUniformLocation(program, "uHeightMap"), 0);
-        glUniform1f(glGetUniformLocation(program, "uHeightScale"), 100.0f);
+        static int uVPLocation = glGetUniformLocation(program, "uVP");
+        static int uHeightScaleLocation = glGetUniformLocation(program, "uHeightScale");
 
-        glBindVertexArray(vao);
+        Utils::GL::SetUniform(program, uVPLocation, vp);
+        Utils::GL::SetUniform(program, uHeightScaleLocation, scale);
+
+        glUseProgram(program);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, heightTex);
 
-        glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+        mesh.Draw();
 
-        glBindVertexArray(0);
         glUseProgram(0);
 
         camera->Update(0.01f);
@@ -135,6 +78,8 @@ void App::Run() {
         BeginUI();
 
         camera->UI();
+
+        ImGui::SliderFloat("Scale", &scale, 0.1f, 1000.0f);
 
         EndUI();
 
@@ -160,6 +105,8 @@ void App::InitOpenGL() {
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr,
                           GL_FALSE);
 #endif
+
+    glEnable(GL_DEPTH_TEST);
 }
 
 void App::InitImGui() const {

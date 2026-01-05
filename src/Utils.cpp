@@ -3,6 +3,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <utility>
 
 #define EXIT(fmt, ...)                                             \
     do {                                                           \
@@ -89,6 +90,36 @@ namespace Utils::GL {
         glDeleteShader(cs);
 
         return p;
+    }
+
+    GLuint
+    CreateTexture(const int width, const int height, const TextureFormat format, const void* data) {
+        GLenum glInternal, glFormat, glType;
+        switch (format) {
+        case TextureFormat::Float1:
+            glInternal = GL_R16F;
+            glFormat = GL_RED;
+            glType = GL_FLOAT;
+            break;
+        case TextureFormat::Float3:
+            glInternal = GL_RGB32F;
+            glFormat = GL_RGB;
+            glType = GL_FLOAT;
+            break;
+        }
+
+        GLuint texture;
+
+        glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+        glTextureStorage2D(texture, 1, glInternal, width, height);
+        glTextureSubImage2D(texture, 0, 0, 0, width, height, glFormat, glType, data);
+
+        glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        return texture;
     }
 
     void OpenGLMessageCallback(GLenum source,

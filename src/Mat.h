@@ -1,50 +1,55 @@
 #pragma once
+
 #include <cstdint>
+#include <functional>
 #include <vector>
 
-#include "glm/glm.hpp"
+#include <glm/glm.hpp>
 
-/*
-Gradient(i,j);
-GradientNorm();
-Laplacian();
-*/
+#include "Image.h"
 
+template <typename T>
 class Mat {
 public:
-    Mat(uint32_t w, uint32_t h, float v = 0.0f);
+    explicit Mat(const glm::uvec2& size,
+                 const glm::vec2& min = {0.0f, 0.0f},
+                 const glm::vec2& max = {1.0f, 1.0f}) :
+        size(size), min(min), delta((max - min) / glm::vec2(size - 1u)), data(size.x * size.y) {}
 
-    Mat(const Mat& other);
-    Mat(Mat&& other) noexcept;
+    explicit Mat(const Image& img,
+                 const glm::vec2& min = {0.0f, 0.0f},
+                 const glm::vec2& max = {1.0f, 1.0f}) :
+        size(img.width, img.height), min(min), delta((max - min) / glm::vec2(size - 1u)),
+        data(size.x * size.y) {
+        for (uint32_t i = 0; i < data.size(); i++)
+            data[i] = static_cast<T>(img.data[i]) / static_cast<T>(255);
+    }
 
-    Mat& operator=(const Mat& other);
-    Mat& operator=(Mat&& other) noexcept;
+    Mat(const glm::uvec2& size,
+        const glm::vec2& min,
+        const glm::vec2& max,
+        const std::function<T(const glm::vec2&)>& f) : Mat(size, min, max) {
+        for (uint32_t y = 0; y < size.y; y++)
+            for (uint32_t x = 0; x < size.x; x++)
+                data[Index(x, y)] = f(Point(x, y));
+    }
 
-    Mat& operator+=(const Mat& other);
-    Mat& operator-=(const Mat& other);
-    Mat& operator*=(float scalar);
-    Mat& operator/=(float scalar);
+    uint32_t Width() const { return size.x; }
+    uint32_t Height() const { return size.y; }
+    const glm::uvec2& Size() const { return size; }
 
-    friend Mat operator+(const Mat& lhs, const Mat& rhs);
-    friend Mat operator-(const Mat& lhs, const Mat& rhs);
-    friend Mat operator*(float scalar, const Mat& mat);
-
-    Mat operator/(float scalar) const;
-
-    uint32_t Width() const { return width; }
-    uint32_t Height() const { return height; }
-
-    float Max() const;
-    float Min() const;
-
-    static Mat Clamp(const Mat& mat, float min, float max);
-    static Mat Normalize(const Mat& mat);
-    static Mat Convolve(const Mat& mat, const glm::mat3& kernel);
-
-private:
-    uint32_t Index(uint32_t x, uint32_t y) const;
+    T* Data() { return data.data(); }
+    const T* Data() const { return data.data(); }
 
 private:
-    uint32_t width = 0, height = 0;
-    std::vector<float> data;
+    uint32_t Index(const uint32_t x, const uint32_t y) const { return y * size.x + x; }
+
+    glm::vec2 Point(const uint32_t x, const uint32_t y) const {
+        return min + glm::vec2(x, y) * delta;
+    }
+
+private:
+    glm::uvec2 size;
+    glm::vec2 min, delta;
+    std::vector<T> data;
 };

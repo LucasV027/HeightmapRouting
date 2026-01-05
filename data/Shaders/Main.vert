@@ -4,8 +4,8 @@ layout (location = 0) in vec2 inPos;
 layout (location = 1) in vec2 inUV;
 
 uniform mat4 uVP;
-uniform sampler2D uHeightMap;
 uniform float uHeightScale;
+layout (binding = 0) uniform sampler2D uHeightMap;
 
 out float vH;
 

@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "Mesh.h"
 #include "Orbiter.h"
 #include "Window.h"
 
@@ -26,8 +27,9 @@ private:
     std::unique_ptr<Window> window;
     std::unique_ptr<Orbiter> camera;
 
+    Mesh mesh;
     GLuint program;
     GLuint heightTex;
-    GLuint vao, vboPos, vboUV, ibo;
-    uint32_t count;
+
+    float scale = 15.f;
 };
