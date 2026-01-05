@@ -26,7 +26,7 @@ App::App() {
     InitOpenGL();
     InitImGui();
 
-    const auto img = Image::FromFile(DATA_DIR "Terrain/alps-montblanc.png");
+    const auto img = Image::FromFile(DATA_DIR "Terrain/alps-montblanc.png", Image::Format::I);
     if (!img.has_value()) {
         throw std::runtime_error("Failed to load image");
     }
@@ -37,8 +37,7 @@ App::App() {
     const auto fragSrc = Utils::ReadFile(DATA_DIR "Shaders/Main.frag");
     program = Utils::GL::CreateProgram(vertSrc.c_str(), fragSrc.c_str());
 
-    heightTex = Utils::GL::CreateTexture(hm.Width(), hm.Height(), Utils::GL::TextureFormat::Float1,
-                                         hm.Data());
+    heightTex = Texture::From(hm);
 
     mesh = Mesh::PlanarGrid(hm.Size(), glm::vec2{-50.0f, -50.0f}, glm::vec2{50.f, 50.f});
 }
@@ -66,8 +65,7 @@ void App::Run() {
 
         glUseProgram(program);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, heightTex);
+        heightTex.Bind();
 
         mesh.Draw();
 

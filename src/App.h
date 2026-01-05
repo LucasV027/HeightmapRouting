@@ -4,6 +4,7 @@
 
 #include "Mesh.h"
 #include "Orbiter.h"
+#include "Texture.h"
 #include "Window.h"
 
 class App {
@@ -29,7 +30,7 @@ private:
 
     Mesh mesh;
     GLuint program;
-    GLuint heightTex;
+    Texture heightTex;
 
     float scale = 15.f;
 };
