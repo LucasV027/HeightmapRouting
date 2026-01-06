@@ -48,25 +48,33 @@ App::~App() {
 
 void App::Run() {
     while (!window->ShouldClose()) {
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // Update
+        {
+            camera->Update(0.01f);
 
-        auto vp = camera->Proj() * camera->View();
+            auto vp = camera->Proj() * camera->View();
+            program.SetUniform("uVP", vp);
+            program.SetUniform("uHeightScale", scale);
+        }
 
-        program.SetUniform("uVP", vp);
-        program.SetUniform("uHeightScale", scale);
+        // Render
+        {
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        program.Bind();
-        heightTex.Bind();
-        mesh.Draw();
-        program.Unbind();
+            program.Bind();
+            heightTex.Bind();
+            mesh.Draw();
+            program.Unbind();
+        }
 
-        camera->Update(0.01f);
-
-        BeginUI();
-        camera->UI();
-        ImGui::SliderFloat("Scale", &scale, 0.1f, 1000.0f);
-        EndUI();
+        // UI
+        {
+            BeginUI();
+            camera->UI();
+            ImGui::SliderFloat("Scale", &scale, 0.1f, 1000.0f);
+            EndUI();
+        }
 
         window->Swap();
         window->Poll();

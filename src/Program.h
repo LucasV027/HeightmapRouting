@@ -13,9 +13,9 @@ public:
     Program() = default;
     ~Program();
 
-    // Delete copy, allow move (Rule of Five)
     Program(const Program&) = delete;
     Program& operator=(const Program&) = delete;
+
     Program(Program&& other) noexcept;
     Program& operator=(Program&& other) noexcept;
 
@@ -31,6 +31,8 @@ public:
     template <typename T>
     void SetUniform(const std::string& name, const T& value) {
         int location = GetUniformLocation(name);
+        if (location == -1)
+            return;
 
         // clang-format off
         if constexpr (std::is_same_v<T, float>)          { glProgramUniform1f(handle, location, value); }
