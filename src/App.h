@@ -4,6 +4,7 @@
 
 #include "Mesh.h"
 #include "Orbiter.h"
+#include "Program.h"
 #include "Texture.h"
 #include "Window.h"
 
@@ -29,7 +30,7 @@ private:
     std::unique_ptr<Orbiter> camera;
 
     Mesh mesh;
-    GLuint program;
+    Program program;
     Texture heightTex;
 
     float scale = 15.f;

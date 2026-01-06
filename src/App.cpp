@@ -31,14 +31,10 @@ App::App() {
         throw std::runtime_error("Failed to load image");
     }
 
-    Mat<float> hm(*img);
+    const Mat<float> hm(*img);
 
-    const auto vertSrc = Utils::ReadFile(DATA_DIR "Shaders/Main.vert");
-    const auto fragSrc = Utils::ReadFile(DATA_DIR "Shaders/Main.frag");
-    program = Utils::GL::CreateProgram(vertSrc.c_str(), fragSrc.c_str());
-
+    program = Program::FromFile(DATA_DIR "Shaders/Main.vert", DATA_DIR "Shaders/Main.frag");
     heightTex = Texture::From(hm);
-
     mesh = Mesh::PlanarGrid(hm.Size(), glm::vec2{-50.0f, -50.0f}, glm::vec2{50.f, 50.f});
 }
 
@@ -57,28 +53,19 @@ void App::Run() {
 
         auto vp = camera->Proj() * camera->View();
 
-        static int uVPLocation = glGetUniformLocation(program, "uVP");
-        static int uHeightScaleLocation = glGetUniformLocation(program, "uHeightScale");
+        program.SetUniform("uVP", vp);
+        program.SetUniform("uHeightScale", scale);
 
-        Utils::GL::SetUniform(program, uVPLocation, vp);
-        Utils::GL::SetUniform(program, uHeightScaleLocation, scale);
-
-        glUseProgram(program);
-
+        program.Bind();
         heightTex.Bind();
-
         mesh.Draw();
-
-        glUseProgram(0);
+        program.Unbind();
 
         camera->Update(0.01f);
 
         BeginUI();
-
         camera->UI();
-
         ImGui::SliderFloat("Scale", &scale, 0.1f, 1000.0f);
-
         EndUI();
 
         window->Swap();
