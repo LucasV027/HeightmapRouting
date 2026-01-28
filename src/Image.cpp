@@ -1,6 +1,7 @@
 #include "Image.h"
 
 #include <cassert>
+#include <cstring>
 
 #include <stb/stb_image.h>
 
