@@ -41,6 +41,9 @@ public:
     T* Data() { return data.data(); }
     const T* Data() const { return data.data(); }
 
+    const T& operator()(const uint32_t x, const uint32_t y) const { return data[Index(x, y)]; }
+    T& operator()(const uint32_t x, const uint32_t y) { return data[Index(x, y)]; }
+
 private:
     uint32_t Index(const uint32_t x, const uint32_t y) const { return y * size.x + x; }
 

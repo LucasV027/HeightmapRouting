@@ -9,8 +9,7 @@ layout (binding = 0) uniform sampler2D uHeightMap;
 
 out float vH;
 
-void main()
-{
+void main() {
     float h = texture(uHeightMap, inUV).r;
 
     vec3 worldPos = vec3(inPos.x, h * uHeightScale, inPos.y);

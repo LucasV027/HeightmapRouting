@@ -29,9 +29,10 @@ private:
     std::unique_ptr<Window> window;
     std::unique_ptr<Orbiter> camera;
 
-    Mesh mesh;
-    Program program;
+    Mesh mesh, waterMesh;
+    Program program, waterProgram;
     Texture heightTex;
 
     float scale = 15.f;
+    float waterHeight = 1.0f;
 };
