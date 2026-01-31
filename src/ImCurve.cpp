@@ -9,6 +9,7 @@ static constexpr float POINT_RADIUS = 5.0f;
 static constexpr float POINT_OUTLINE_THICKNESS = 1.0f;
 
 static constexpr int GRID_DIVISIONS = 4;
+static constexpr int SAMPLES_PER_SEGMENT = 15;
 
 // For selection & hovering
 static constexpr float SATURATION_FACTOR = 2.5f;
@@ -25,7 +26,7 @@ static constexpr ImU32 COLOR_GRID_LINE = IM_COL32(100, 100, 100, 100);
 static constexpr ImU32 COLOR_CURVE_SEGMENT = IM_COL32(57, 128, 233, 128);
 static constexpr float CURVE_THICKNESS = 2.0f;
 
-static constexpr float ANCHOR_EXTENSION = 20.0f;
+static constexpr float ANCHOR_EXTENSION = 10.0f;
 
 struct Context {
     ImDrawList* drawList;
@@ -39,7 +40,10 @@ struct Context {
 static void HandleInteraction(const Context& ctx);
 static void DrawGrid(const Context& ctx);
 static void DrawPoints(const Context& ctx);
+
 static void DrawCurve(const Context& ctx);
+static void DrawCurveLinear(const Context& ctx);
+static void DrawCurveInterpolation(const Context& ctx);
 
 static ImVec2 NormalizedToScreen(Curve::Point normalized, ImVec2 canvasPos, ImVec2 canvasSize);
 static ImVec2 ScreenToNormalized(ImVec2 screen, ImVec2 canvasPos, ImVec2 canvasSize);
@@ -87,6 +91,18 @@ void ImGui::CurveEditor(const char* label, Curve& curve, const ImVec2 size) {
 
     ImGui::SetCursorScreenPos(extendedPos);
     ImGui::InvisibleButton("canvas", extendedSize);
+
+    ImGui::SetCursorScreenPos(
+        ImVec2(ctx.canvasPos.x, ctx.canvasPos.y + ctx.canvasSize.y + ANCHOR_EXTENSION));
+
+    static int currentMode = static_cast<int>(curve.GetInterpolationMode());
+    const char* modes[] = {"Linear", "Cosinus"};
+    ImGui::SetNextItemWidth(ctx.canvasSize.x);
+
+    if (ImGui::Combo("##InterpolationMode", &currentMode, modes, IM_ARRAYSIZE(modes))) {
+        curve.SetInterpolationMode(static_cast<Curve::Interpolation>(currentMode));
+    }
+
     ImGui::EndGroup();
 }
 
@@ -188,6 +204,37 @@ void DrawPoints(const Context& ctx) {
 }
 
 void DrawCurve(const Context& ctx) {
+    if (ctx.curve.GetInterpolationMode() == Curve::Interpolation::LINEAR)
+        DrawCurveLinear(ctx);
+    else
+        DrawCurveInterpolation(ctx);
+}
+
+void DrawCurveInterpolation(const Context& ctx) {
+    auto& points = ctx.curve.GetPoints();
+
+    if (points.size() < 2)
+        return;
+
+    const float step = 1.0f / (SAMPLES_PER_SEGMENT * (points.size() - 1));
+
+    ImVec2 prevScreenPos = NormalizedToScreen(points[0], ctx.canvasPos, ctx.canvasSize);
+
+    for (float x = step; x <= 1.0f; x += step) {
+        const float y = ctx.curve(x);
+        const Curve::Point currentPoint{x, y};
+        const ImVec2 currentScreenPos =
+            NormalizedToScreen(currentPoint, ctx.canvasPos, ctx.canvasSize);
+        ctx.drawList->AddLine(prevScreenPos, currentScreenPos, COLOR_CURVE_SEGMENT,
+                              CURVE_THICKNESS);
+        prevScreenPos = currentScreenPos;
+    }
+
+    const ImVec2 lastScreenPos = NormalizedToScreen(points.back(), ctx.canvasPos, ctx.canvasSize);
+    ctx.drawList->AddLine(prevScreenPos, lastScreenPos, COLOR_CURVE_SEGMENT, CURVE_THICKNESS);
+}
+
+void DrawCurveLinear(const Context& ctx) {
     auto& points = ctx.curve.GetPoints();
 
     if (points.size() < 2)

@@ -87,7 +87,7 @@ void App::Run() {
             ImGui::SliderFloat("Scale", &scale, 0.1f, 1000.0f);
             ImGui::SliderFloat("Water", &waterHeight, 0.0f, 100.0f);
 
-            static Curve curve;
+            static Curve curve(Curve::Interpolation::LINEAR);
             ImGui::CurveEditor("Curve", curve);
 
             EndUI();
