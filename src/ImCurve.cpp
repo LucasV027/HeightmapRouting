@@ -1,0 +1,229 @@
+#include "ImCurve.h"
+
+#include <cmath>
+
+#include "App.h"
+
+static constexpr float POINT_GRAB_RADIUS = 7.0f;
+static constexpr float POINT_RADIUS = 5.0f;
+static constexpr float POINT_OUTLINE_THICKNESS = 1.0f;
+
+static constexpr int GRID_DIVISIONS = 4;
+
+// For selection & hovering
+static constexpr float SATURATION_FACTOR = 2.5f;
+
+static constexpr ImU32 COLOR_POINT_DEFAULT = IM_COL32(50, 50, 50, 255);
+static constexpr ImU32 COLOR_POINT_OUTLINE = IM_COL32(255, 255, 255, 255);
+static constexpr ImU32 COLOR_ANCHOR_LEFT = IM_COL32(255, 100, 100, 255);
+static constexpr ImU32 COLOR_ANCHOR_RIGHT = IM_COL32(40, 213, 255, 255);
+
+static constexpr ImU32 COLOR_CANVAS_BORDER = IM_COL32(200, 200, 200, 255);
+static constexpr ImU32 COLOR_CANVAS_BG = IM_COL32(50, 50, 50, 255);
+
+static constexpr ImU32 COLOR_GRID_LINE = IM_COL32(100, 100, 100, 100);
+static constexpr ImU32 COLOR_CURVE_SEGMENT = IM_COL32(57, 128, 233, 128);
+static constexpr float CURVE_THICKNESS = 2.0f;
+
+static constexpr float ANCHOR_EXTENSION = 20.0f;
+
+struct Context {
+    ImDrawList* drawList;
+    ImVec2 canvasPos;
+    ImVec2 canvasSize;
+    Curve& curve;
+    int& selectedPoint;
+    int& hoveredPoint;
+};
+
+static void HandleInteraction(const Context& ctx);
+static void DrawGrid(const Context& ctx);
+static void DrawPoints(const Context& ctx);
+static void DrawCurve(const Context& ctx);
+
+static ImVec2 NormalizedToScreen(Curve::Point normalized, ImVec2 canvasPos, ImVec2 canvasSize);
+static ImVec2 ScreenToNormalized(ImVec2 screen, ImVec2 canvasPos, ImVec2 canvasSize);
+static ImU32 SaturateColor(ImU32 color, float factor);
+
+void ImGui::CurveEditor(const char* label, Curve& curve, const ImVec2 size) {
+    ImGui::BeginGroup();
+    ImGui::Text("%s", label);
+
+    static int selectedPoint = -1;
+    static int hoveredPoint = -1;
+
+    const Context ctx{
+        .drawList = ImGui::GetWindowDrawList(),
+        .canvasPos = ImGui::GetCursorScreenPos(),
+        .canvasSize = size,
+        .curve = curve,
+        .selectedPoint = selectedPoint,
+        .hoveredPoint = hoveredPoint,
+    };
+
+    // Background
+    ctx.drawList->AddRectFilled(
+        ctx.canvasPos,
+        ImVec2(ctx.canvasPos.x + ctx.canvasSize.x, ctx.canvasPos.y + ctx.canvasSize.y),
+        COLOR_CANVAS_BG);
+
+    // Border
+    ctx.drawList->AddRect(
+        ctx.canvasPos,
+        ImVec2(ctx.canvasPos.x + ctx.canvasSize.x, ctx.canvasPos.y + ctx.canvasSize.y),
+        COLOR_CANVAS_BORDER);
+
+    DrawGrid(ctx);
+    DrawCurve(ctx);
+    DrawPoints(ctx);
+
+    HandleInteraction(ctx);
+
+    // Invisible zone for mouse detection
+    const auto extendedPos =
+        ImVec2(ctx.canvasPos.x - ANCHOR_EXTENSION, ctx.canvasPos.y - ANCHOR_EXTENSION);
+    const auto extendedSize =
+        ImVec2(ctx.canvasSize.x + 2 * ANCHOR_EXTENSION, ctx.canvasSize.y + 2 * ANCHOR_EXTENSION);
+
+    ImGui::SetCursorScreenPos(extendedPos);
+    ImGui::InvisibleButton("canvas", extendedSize);
+    ImGui::EndGroup();
+}
+
+void HandleInteraction(const Context& ctx) {
+    const ImGuiIO& io = ImGui::GetIO();
+    const ImVec2 mousePos = io.MousePos;
+    ctx.hoveredPoint = -1;
+    auto& points = ctx.curve.GetPoints();
+
+    const bool inExtendedCanvas = mousePos.x >= ctx.canvasPos.x - ANCHOR_EXTENSION &&
+        mousePos.x <= ctx.canvasPos.x + ctx.canvasSize.x + ANCHOR_EXTENSION &&
+        mousePos.y >= ctx.canvasPos.y - ANCHOR_EXTENSION &&
+        mousePos.y <= ctx.canvasPos.y + ctx.canvasSize.y + ANCHOR_EXTENSION;
+
+    const bool inCanvas = mousePos.x >= ctx.canvasPos.x &&
+        mousePos.x <= ctx.canvasPos.x + ctx.canvasSize.x && mousePos.y >= ctx.canvasPos.y &&
+        mousePos.y <= ctx.canvasPos.y + ctx.canvasSize.y;
+
+    if (inExtendedCanvas) {
+        for (size_t i = 0; i < points.size(); ++i) {
+            const ImVec2 screenPos = NormalizedToScreen(points[i], ctx.canvasPos, ctx.canvasSize);
+            const float dist = std::hypotf(mousePos.x - screenPos.x, mousePos.y - screenPos.y);
+
+            if (dist < POINT_GRAB_RADIUS) {
+                ctx.hoveredPoint = static_cast<int>(i);
+                break;
+            }
+        }
+
+        // Select point
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            ctx.selectedPoint = ctx.hoveredPoint;
+        }
+
+        // Delete point
+        if (inCanvas && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && ctx.hoveredPoint != -1) {
+            ctx.curve.RemovePoint(ctx.hoveredPoint);
+            ctx.hoveredPoint = -1;
+            ctx.selectedPoint = -1;
+        }
+    }
+
+    // Add point
+    if (inCanvas && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ctx.hoveredPoint == -1) {
+        const auto [x, y] = ScreenToNormalized(mousePos, ctx.canvasPos, ctx.canvasSize);
+        ctx.curve.AddPoint(x, y);
+    }
+
+    // Move point
+    if (ctx.selectedPoint != -1 && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+        auto [x, y] = ScreenToNormalized(mousePos, ctx.canvasPos, ctx.canvasSize);
+        ctx.curve.MovePoint(ctx.selectedPoint, x, y);
+    }
+
+    // Drop
+    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+        ctx.selectedPoint = -1;
+    }
+}
+
+
+void DrawGrid(const Context& ctx) {
+    for (int i = 1; i < GRID_DIVISIONS; ++i) {
+        const float x = ctx.canvasPos.x + (ctx.canvasSize.x / GRID_DIVISIONS) * i;
+        const float y = ctx.canvasPos.y + (ctx.canvasSize.y / GRID_DIVISIONS) * i;
+
+        // Vertical
+        ctx.drawList->AddLine(ImVec2(x, ctx.canvasPos.y),
+                              ImVec2(x, ctx.canvasPos.y + ctx.canvasSize.y), COLOR_GRID_LINE);
+
+        // Horizontal
+        ctx.drawList->AddLine(ImVec2(ctx.canvasPos.x, y),
+                              ImVec2(ctx.canvasPos.x + ctx.canvasSize.x, y), COLOR_GRID_LINE);
+    }
+}
+
+void DrawPoints(const Context& ctx) {
+    auto& points = ctx.curve.GetPoints();
+    for (int i = 0; i < points.size(); ++i) {
+        ImVec2 screenPos = NormalizedToScreen(points[i], ctx.canvasPos, ctx.canvasSize);
+
+        ImU32 color;
+        if (i == 0)
+            color = COLOR_ANCHOR_LEFT;
+        else if (i == points.size() - 1)
+            color = COLOR_ANCHOR_RIGHT;
+        else
+            color = COLOR_POINT_DEFAULT;
+
+
+        if (i == ctx.selectedPoint || i == ctx.hoveredPoint) {
+            color = SaturateColor(color, SATURATION_FACTOR);
+        }
+
+        ctx.drawList->AddCircleFilled(screenPos, POINT_RADIUS, color);
+        ctx.drawList->AddCircle(screenPos, POINT_RADIUS, COLOR_POINT_OUTLINE, 0,
+                                POINT_OUTLINE_THICKNESS);
+    }
+}
+
+void DrawCurve(const Context& ctx) {
+    auto& points = ctx.curve.GetPoints();
+
+    if (points.size() < 2)
+        return;
+
+    for (size_t i = 0; i < points.size() - 1; ++i) {
+        ImVec2 p1 = NormalizedToScreen(points[i], ctx.canvasPos, ctx.canvasSize);
+        ImVec2 p2 = NormalizedToScreen(points[i + 1], ctx.canvasPos, ctx.canvasSize);
+        ctx.drawList->AddLine(p1, p2, COLOR_CURVE_SEGMENT, CURVE_THICKNESS);
+    }
+}
+
+ImVec2
+NormalizedToScreen(const Curve::Point normalized, const ImVec2 canvasPos, const ImVec2 canvasSize) {
+    return {
+        canvasPos.x + normalized.x * canvasSize.x,
+        canvasPos.y + (1.0f - normalized.y) * canvasSize.y,
+    };
+}
+
+ImVec2 ScreenToNormalized(const ImVec2 screen, const ImVec2 canvasPos, const ImVec2 canvasSize) {
+    return {
+        (screen.x - canvasPos.x) / canvasSize.x,
+        1.0f - (screen.y - canvasPos.y) / canvasSize.y,
+    };
+}
+
+static ImU32 SaturateColor(const ImU32 color, const float factor) {
+    float r = ((color >> IM_COL32_R_SHIFT) & 0xFF) / 255.0f;
+    float g = ((color >> IM_COL32_G_SHIFT) & 0xFF) / 255.0f;
+    float b = ((color >> IM_COL32_B_SHIFT) & 0xFF) / 255.0f;
+
+    r = std::min(1.0f, r * factor);
+    g = std::min(1.0f, g * factor);
+    b = std::min(1.0f, b * factor);
+
+    return IM_COL32(static_cast<int>(r * 255), static_cast<int>(g * 255), static_cast<int>(b * 255),
+                    255);
+}

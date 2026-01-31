@@ -2,6 +2,9 @@
 
 #include <iostream>
 
+#include "Curve.h"
+#include "ImCurve.h"
+
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -79,9 +82,14 @@ void App::Run() {
         // UI
         {
             BeginUI();
+            ImGui::Text("%d FPS", (int)ImGui::GetIO().Framerate);
             camera->UI();
             ImGui::SliderFloat("Scale", &scale, 0.1f, 1000.0f);
             ImGui::SliderFloat("Water", &waterHeight, 0.0f, 100.0f);
+
+            static Curve curve;
+            ImGui::CurveEditor("Curve", curve);
+
             EndUI();
         }
 
