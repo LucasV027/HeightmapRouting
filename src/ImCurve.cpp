@@ -50,11 +50,16 @@ static ImVec2 ScreenToNormalized(ImVec2 screen, ImVec2 canvasPos, ImVec2 canvasS
 static ImU32 SaturateColor(ImU32 color, float factor);
 
 void ImGui::CurveEditor(const char* label, Curve& curve, const ImVec2 size) {
+    ImGui::PushID(label);
     ImGui::BeginGroup();
     ImGui::Text("%s", label);
 
-    static int selectedPoint = -1;
-    static int hoveredPoint = -1;
+    ImGuiStorage* storage = ImGui::GetStateStorage();
+    const ImGuiID selectedPointID = ImGui::GetID("selectedPoint");
+    const ImGuiID hoveredPointID = ImGui::GetID("hoveredPoint");
+
+    int selectedPoint = storage->GetInt(selectedPointID, -1);
+    int hoveredPoint = storage->GetInt(hoveredPointID, -1);
 
     const Context ctx{
         .drawList = ImGui::GetWindowDrawList(),
@@ -83,6 +88,9 @@ void ImGui::CurveEditor(const char* label, Curve& curve, const ImVec2 size) {
 
     HandleInteraction(ctx);
 
+    storage->SetInt(selectedPointID, ctx.selectedPoint);
+    storage->SetInt(hoveredPointID, ctx.hoveredPoint);
+
     // Invisible zone for mouse detection
     const auto extendedPos =
         ImVec2(ctx.canvasPos.x - ANCHOR_EXTENSION, ctx.canvasPos.y - ANCHOR_EXTENSION);
@@ -91,11 +99,10 @@ void ImGui::CurveEditor(const char* label, Curve& curve, const ImVec2 size) {
 
     ImGui::SetCursorScreenPos(extendedPos);
     ImGui::InvisibleButton("canvas", extendedSize);
-
     ImGui::SetCursorScreenPos(
         ImVec2(ctx.canvasPos.x, ctx.canvasPos.y + ctx.canvasSize.y + ANCHOR_EXTENSION));
 
-    static int currentMode = static_cast<int>(curve.GetInterpolationMode());
+    int currentMode = static_cast<int>(curve.GetInterpolationMode());
     const char* modes[] = {"Linear", "Cosinus"};
     ImGui::SetNextItemWidth(ctx.canvasSize.x);
 
@@ -104,13 +111,15 @@ void ImGui::CurveEditor(const char* label, Curve& curve, const ImVec2 size) {
     }
 
     ImGui::EndGroup();
+    ImGui::PopID();
 }
 
 void HandleInteraction(const Context& ctx) {
     const ImGuiIO& io = ImGui::GetIO();
     const ImVec2 mousePos = io.MousePos;
-    ctx.hoveredPoint = -1;
     auto& points = ctx.curve.GetPoints();
+
+    ctx.hoveredPoint = -1;
 
     const bool inExtendedCanvas = mousePos.x >= ctx.canvasPos.x - ANCHOR_EXTENSION &&
         mousePos.x <= ctx.canvasPos.x + ctx.canvasSize.x + ANCHOR_EXTENSION &&
