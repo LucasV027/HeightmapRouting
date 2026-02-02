@@ -29,10 +29,12 @@ private:
     std::unique_ptr<Window> window;
     std::unique_ptr<Orbiter> camera;
 
-    Mesh mesh, waterMesh;
-    Program program, waterProgram;
+    Mesh terrainMesh, waterMesh, pathMesh;
+    Program terrainProgram, waterProgram, lineProgram;
     Texture heightTex;
 
-    float scale = 15.f;
+    std::unique_ptr<Mat<float>> hm;
+
+    float heigthScale = 15.f;
     float waterHeight = 1.0f;
 };

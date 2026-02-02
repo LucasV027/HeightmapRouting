@@ -1,20 +1,13 @@
 #include "App.h"
 
-#include <iostream>
-
-#include "Curve.h"
-#include "ImCurve.h"
-
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
-#include "Image.h"
-#include "Mat.h"
-#include "Orbiter.h"
+#include "ImCurve.h"
+#include "PathFinder.h"
 #include "Utils.h"
-#include "Window.h"
 
 static App* instance = nullptr;
 
@@ -34,13 +27,17 @@ App::App() {
         throw std::runtime_error("Failed to load image");
     }
 
-    const Mat<float> hm(*img);
+    hm = std::make_unique<Mat<float>>(*img);
 
     waterProgram = Program::FromFile(DATA_DIR "Shaders/Water.vert", DATA_DIR "Shaders/Water.frag");
-    program = Program::FromFile(DATA_DIR "Shaders/Main.vert", DATA_DIR "Shaders/Main.frag");
-    heightTex = Texture::From(hm);
-    mesh = Mesh::PlanarGrid(hm.Size(), glm::vec2{-50.0f, -50.0f}, glm::vec2{50.f, 50.f});
-    waterMesh = Mesh::PlanarGrid({2u, 2u}, glm::vec2{-50.0f, -50.0f}, glm::vec2{50.0f, 50.0f});
+    terrainProgram = Program::FromFile(DATA_DIR "Shaders/Main.vert", DATA_DIR "Shaders/Main.frag");
+    lineProgram = Program::FromFile(DATA_DIR "Shaders/Line.vert", DATA_DIR "Shaders/Line.frag");
+
+    heightTex = Texture::From(*hm);
+
+    terrainMesh = Mesh::PlanarGrid(hm->Size(), {-50.0f, -50.0f}, {50.f, 50.f});
+    waterMesh = Mesh::PlanarGrid({2u, 2u}, {-50.0f, -50.0f}, {50.0f, 50.0f});
+    pathMesh.SetPrimitiveType(PrimitiveType::LINES).SetLayout({{GL_FLOAT, 3}});
 }
 
 App::~App() {
@@ -58,10 +55,13 @@ void App::Run() {
             camera->Update(0.01f);
 
             auto vp = camera->Proj() * camera->View();
-            program.SetUniform("uVP", vp);
-            program.SetUniform("uHeightScale", scale);
+            terrainProgram.SetUniform("uVP", vp);
+            terrainProgram.SetUniform("uHeightScale", heigthScale);
+
             waterProgram.SetUniform("uVP", vp);
             waterProgram.SetUniform("uHeight", waterHeight);
+
+            lineProgram.SetUniform("uVP", vp);
         }
 
         // Render
@@ -69,28 +69,78 @@ void App::Run() {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            program.Bind();
             heightTex.Bind();
-            mesh.Draw();
-            program.Unbind();
+
+            terrainProgram.Bind();
+            terrainMesh.Draw();
+            terrainProgram.Unbind();
 
             waterProgram.Bind();
             waterMesh.Draw();
             waterProgram.Unbind();
+
+            lineProgram.Bind();
+            glLineWidth(3.0f);
+            pathMesh.Draw();
+            lineProgram.Unbind();
         }
 
         // UI
         {
             BeginUI();
-            ImGui::Text("%d FPS", (int)ImGui::GetIO().Framerate);
+            ImGui::Text("%d FPS", static_cast<int>(ImGui::GetIO().Framerate));
             camera->UI();
-            ImGui::SliderFloat("Scale", &scale, 0.1f, 1000.0f);
+            ImGui::SliderFloat("Scale", &heigthScale, 0.1f, 1000.0f);
             ImGui::SliderFloat("Water", &waterHeight, 0.0f, 100.0f);
 
-            static Curve curve1(Curve::Interpolation::LINEAR);
-            static Curve curve2(Curve::Interpolation::COSINUS);
-            ImGui::CurveEditor("Curve1", curve1);
-            ImGui::CurveEditor("Curve2", curve2);
+            ImGui::SeparatorText("Path find");
+            ImGui::Indent();
+
+            static PathFinder pathFinder;
+            static Curve curve(Curve::Interpolation::LINEAR);
+            static int start[2] = {20, 20};
+            static int end[2] = {300, 300};
+
+            ImGui::CurveEditor("Height metric", curve);
+
+            ImGui::InputInt2("Start", start);
+            ImGui::InputInt2("End", end);
+
+            if (ImGui::Button("Compute")) {
+                auto path = PathFinder() //
+                                .From(start[0], start[1])
+                                .To(end[0], end[1])
+                                .With(curve, *hm)
+                                .Compute();
+
+                if (path.size() >= 2) {
+                    std::vector<float> vertices;
+                    std::vector<uint32_t> indices;
+                    vertices.reserve(path.size() * 3);
+                    indices.reserve((path.size() - 1) * 2);
+
+                    auto min = glm::vec2(-50.f);
+                    auto max = glm::vec2(50.f);
+                    const float dx = 1.0f / static_cast<float>(hm->Width() - 1);
+                    const float dy = 1.0f / static_cast<float>(hm->Height() - 1);
+                    for (const auto p : path) {
+                        vertices.push_back(min.x + (max.x - min.x) * p.x * dx);
+                        vertices.push_back((*hm)(p.x, p.y) * heigthScale + 0.2f);
+                        vertices.push_back(min.y + (max.y - min.y) * p.y * dy);
+                    }
+                    for (size_t i = 0; i < path.size() - 1; ++i) {
+                        indices.push_back(static_cast<uint32_t>(i));
+                        indices.push_back(static_cast<uint32_t>(i + 1));
+                    }
+
+                    pathMesh.SetVertices(std::move(vertices))
+                        .SetIndices(std::move(indices))
+                        .Upload();
+                }
+            }
+
+            ImGui::Unindent();
+
 
             EndUI();
         }
