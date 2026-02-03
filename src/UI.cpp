@@ -1,8 +1,8 @@
-#include "ImCurve.h"
+#include "UI.h"
 
 #include <cmath>
 
-#include "App.h"
+#include "Core/App.h"
 
 static constexpr float POINT_GRAB_RADIUS = 7.0f;
 static constexpr float POINT_RADIUS = 5.0f;
@@ -282,4 +282,21 @@ static ImU32 SaturateColor(const ImU32 color, const float factor) {
 
     return IM_COL32(static_cast<int>(r * 255), static_cast<int>(g * 255), static_cast<int>(b * 255),
                     255);
+}
+
+bool ImGui::ComputeButton(const char* label, const bool computing, const ImVec2& size) {
+    if (computing) {
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+    }
+
+    const bool ret = ImGui::Button(label, size);
+
+    if (computing) {
+        ImGui::PopItemFlag();
+        ImGui::PopStyleVar();
+        ImGui::SameLine();
+        ImGui::Text("%c", "|/-\\"[static_cast<int>(ImGui::GetTime() / 0.05f) & 3]);
+    }
+    return ret;
 }

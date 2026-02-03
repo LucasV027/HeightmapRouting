@@ -104,13 +104,16 @@ GLuint Program::CompileShader(const GLenum type, const char* source) {
     GLint success;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
-        GLint logLength;
+        GLint logLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
-        std::vector<GLchar> log(logLength);
+
+        std::string log;
+        log.resize(static_cast<size_t>(logLength > 0 ? logLength : 1));
+
         glGetShaderInfoLog(shader, logLength, nullptr, log.data());
-        std::cerr << "Shader compilation failed:\n" << log.data() << std::endl;
         glDeleteShader(shader);
-        return 0;
+
+        throw std::runtime_error("OpenGL compilation failed:\n" + log);
     }
 
     return shader;
@@ -127,14 +130,17 @@ GLuint Program::LinkProgram(const std::vector<GLuint>& shaders) {
 
     GLint success;
     glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success) {
-        GLint logLength;
+    if (success != GL_TRUE) {
+        GLint logLength = 0;
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
-        std::vector<GLchar> log(logLength);
+
+        std::string log;
+        log.resize(static_cast<size_t>(logLength > 0 ? logLength : 1));
+
         glGetProgramInfoLog(program, logLength, nullptr, log.data());
-        std::cerr << "Program linking failed:\n" << log.data() << std::endl;
         glDeleteProgram(program);
-        return 0;
+
+        throw std::runtime_error("OpenGL program link failed:\n" + log);
     }
 
     return program;

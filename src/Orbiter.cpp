@@ -2,7 +2,7 @@
 
 #include <imgui.h>
 
-#include "App.h"
+#include "Core/App.h"
 
 Orbiter::Orbiter(const glm::vec3& position, const float radius, const float aspect) :
     position(position), radius(radius), aspect(aspect) {
