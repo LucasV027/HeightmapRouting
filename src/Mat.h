@@ -9,6 +9,7 @@
 template <typename T>
 class Mat {
 public:
+    Mat() = default;
     explicit Mat(const glm::uvec2& size) : size(size), data(size.x * size.y) {}
     Mat(const glm::uvec2& size, const T& value) : size(size), data(size.x * size.y, value) {}
 
@@ -31,6 +32,6 @@ public:
     uint32_t Index(const uint32_t x, const uint32_t y) const { return y * size.x + x; }
 
 protected:
-    glm::uvec2 size;
+    glm::uvec2 size{0, 0};
     std::vector<T> data;
 };

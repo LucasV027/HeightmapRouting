@@ -5,6 +5,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
+#include "Algorithm.h"
 #include "ImCurve.h"
 #include "PathFinder.h"
 #include "Utils.h"
@@ -27,15 +28,17 @@ App::App() {
         throw std::runtime_error("Failed to load image");
     }
 
-    hm = std::make_unique<Mat<float>>(*img);
+    hm = Mat<float>(*img);
+    normals = Algorithm::NormalMap(hm, heightScale);
 
     waterProgram = Program::FromFile(DATA_DIR "Shaders/Water.vert", DATA_DIR "Shaders/Water.frag");
     terrainProgram = Program::FromFile(DATA_DIR "Shaders/Main.vert", DATA_DIR "Shaders/Main.frag");
     lineProgram = Program::FromFile(DATA_DIR "Shaders/Line.vert", DATA_DIR "Shaders/Line.frag");
 
-    heightTex = Texture::From(*hm);
+    heightTex = Texture::From(hm);
+    normalTex = Texture::From(normals);
 
-    terrainMesh = Mesh::PlanarGrid(hm->Size(), {-50.0f, -50.0f}, {50.f, 50.f});
+    terrainMesh = Mesh::PlanarGrid(hm.Size(), {-50.0f, -50.0f}, {50.f, 50.f});
     waterMesh = Mesh::PlanarGrid({2u, 2u}, {-50.0f, -50.0f}, {50.0f, 50.0f});
     pathMesh.SetPrimitiveType(PrimitiveType::LINES).SetLayout({{GL_FLOAT, 3}});
 }
@@ -56,7 +59,7 @@ void App::Run() {
 
             auto vp = camera->Proj() * camera->View();
             terrainProgram.SetUniform("uVP", vp);
-            terrainProgram.SetUniform("uHeightScale", heigthScale);
+            terrainProgram.SetUniform("uHeightScale", heightScale);
 
             waterProgram.SetUniform("uVP", vp);
             waterProgram.SetUniform("uHeight", waterHeight);
@@ -69,7 +72,8 @@ void App::Run() {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            heightTex.Bind();
+            heightTex.Bind(0);
+            normalTex.Bind(1);
 
             terrainProgram.Bind();
             terrainMesh.Draw();
@@ -90,7 +94,7 @@ void App::Run() {
             BeginUI();
             ImGui::Text("%d FPS", static_cast<int>(ImGui::GetIO().Framerate));
             camera->UI();
-            ImGui::SliderFloat("Scale", &heigthScale, 0.1f, 1000.0f);
+            ImGui::SliderFloat("Scale", &heightScale, 0.1f, 1000.0f);
             ImGui::SliderFloat("Water", &waterHeight, 0.0f, 100.0f);
 
             ImGui::SeparatorText("Path find");
@@ -110,7 +114,7 @@ void App::Run() {
                 auto path = PathFinder() //
                                 .From(start[0], start[1])
                                 .To(end[0], end[1])
-                                .With(curve, *hm)
+                                .With(curve, hm)
                                 .Compute();
 
                 if (path.size() >= 2) {
@@ -121,11 +125,11 @@ void App::Run() {
 
                     auto min = glm::vec2(-50.f);
                     auto max = glm::vec2(50.f);
-                    const float dx = 1.0f / static_cast<float>(hm->Width() - 1);
-                    const float dy = 1.0f / static_cast<float>(hm->Height() - 1);
+                    const float dx = 1.0f / static_cast<float>(hm.Width() - 1);
+                    const float dy = 1.0f / static_cast<float>(hm.Height() - 1);
                     for (const auto p : path) {
                         vertices.push_back(min.x + (max.x - min.x) * p.x * dx);
-                        vertices.push_back((*hm)(p.x, p.y) * heigthScale + 0.2f);
+                        vertices.push_back(hm(p.x, p.y) * heightScale + 0.2f);
                         vertices.push_back(min.y + (max.y - min.y) * p.y * dy);
                     }
                     for (size_t i = 0; i < path.size() - 1; ++i) {

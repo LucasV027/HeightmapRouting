@@ -31,10 +31,11 @@ private:
 
     Mesh terrainMesh, waterMesh, pathMesh;
     Program terrainProgram, waterProgram, lineProgram;
-    Texture heightTex;
+    Texture heightTex, normalTex;
 
-    std::unique_ptr<Mat<float>> hm;
+    Mat<float> hm;
+    Mat<glm::vec3> normals;
 
-    float heigthScale = 15.f;
+    float heightScale = 15.f;
     float waterHeight = 1.0f;
 };
