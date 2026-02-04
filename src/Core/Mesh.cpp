@@ -1,5 +1,7 @@
 #include "Mesh.h"
 
+#include "Utils.h"
+
 Mesh::~Mesh() {
     Cleanup();
 }
@@ -165,6 +167,24 @@ Mesh Mesh::PlanarGrid(const glm::uvec2& size, const glm::vec2& min, const glm::v
                          .SetVertices(vertices)
                          .SetIndices(indices)
                          .SetLayout({{GL_FLOAT, 2}, {GL_FLOAT, 2}})
+                         .Upload());
+}
+
+Mesh Mesh::FromFile(const std::filesystem::path& path) {
+    auto [vertices, indices, attribs] = Utils::Model::FromFile(path);
+
+    VertexLayout layout = {};
+    if (attribs & Utils::Model::Attribs::POSITION)
+        layout.attributes.push_back({GL_FLOAT, 3});
+    if (attribs & Utils::Model::Attribs::NORMAL)
+        layout.attributes.push_back({GL_FLOAT, 3});
+    if (attribs & Utils::Model::Attribs::TEXCOORD)
+        layout.attributes.push_back({GL_FLOAT, 2});
+
+    return std::move(Mesh()
+                         .SetVertices(std::move(vertices))
+                         .SetIndices(std::move(indices))
+                         .SetLayout(layout)
                          .Upload());
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <vector>
 
 #include <glad/gl.h>
@@ -87,6 +88,7 @@ public:
     void Draw() const;
 
     static Mesh PlanarGrid(const glm::uvec2& size, const glm::vec2& min, const glm::vec2& max);
+    static Mesh FromFile(const std::filesystem::path& path);
 
 private:
     void SetupVertexAttributes() const;
