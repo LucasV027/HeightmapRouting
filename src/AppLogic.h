@@ -33,4 +33,5 @@ private:
 
     float heightScale = 15.f;
     float waterHeight = 1.0f;
+    bool renderWater = false;
 };

@@ -1,14 +1,26 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
-#include "Curve.h"
 #include "Mat.h"
 
 class PathFinder {
 public:
-    using Metric = std::pair<Curve, Mat<float>>;
+    struct Edge {
+        int x1, y1;
+        int x2, y2;
+        float d;
+
+        Edge( int x1,  int y1,  int x2,  int y2);
+    };
+
     using Path = std::vector<glm::vec2>;
+    using CostFunction = std::function<float(Edge)>;
+    struct Metric {
+        float weight;
+        CostFunction cost;
+    };
 
     enum class Connectivity { C4 = 4, C8 = 8 };
 
@@ -16,14 +28,21 @@ public:
 
     PathFinder& From(int x, int y);
     PathFinder& To(int x, int y);
-    PathFinder& With(const Curve& curve, const Mat<float>& values);
+    PathFinder& Size(int x, int y);
+    PathFinder& With(float weight, const CostFunction& f);
     PathFinder& SetConnectivity(Connectivity c);
 
     Path Compute();
 
 private:
+    bool Validate() const;
+    bool InBounds(int x, int y) const;
+
+
+private:
     glm::ivec2 start = {-1, -1};
     glm::ivec2 end = {-1, -1};
+    glm::ivec2 size = {-1, -1};
     Connectivity connectivity = Connectivity::C4;
     std::vector<Metric> metrics;
 };

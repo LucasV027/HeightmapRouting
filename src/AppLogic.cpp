@@ -3,6 +3,7 @@
 #include <future>
 
 #include "Algorithm.h"
+#include "Metric.h"
 #include "PathFinder.h"
 #include "UI.h"
 
@@ -38,12 +39,15 @@ void AppLogic::Update() {
     terrainProgram.SetUniform("uVP", vp);
     terrainProgram.SetUniform("uHeightScale", heightScale);
 
-    waterProgram.SetUniform("uVP", vp);
-    waterProgram.SetUniform("uHeight", waterHeight);
+    if (renderWater) {
+        waterProgram.SetUniform("uVP", vp);
+        waterProgram.SetUniform("uHeight", waterHeight);
+    }
 
     lineProgram.SetUniform("uVP", vp);
 
-    if (jobRunning && pendingJob.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+    if (jobRunning &&
+        pendingJob.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
         const auto path = pendingJob.get();
 
         if (path.size() >= 2) {
@@ -84,9 +88,11 @@ void AppLogic::Render() const {
     terrainMesh.Draw();
     terrainProgram.Unbind();
 
-    waterProgram.Bind();
-    waterMesh.Draw();
-    waterProgram.Unbind();
+    if (renderWater) {
+        waterProgram.Bind();
+        waterMesh.Draw();
+        waterProgram.Unbind();
+    }
 
     lineProgram.Bind();
     glLineWidth(3.0f);
@@ -98,16 +104,16 @@ void AppLogic::UI() {
     ImGui::Text("%d FPS", static_cast<int>(ImGui::GetIO().Framerate));
     camera->UI();
     ImGui::SliderFloat("Scale", &heightScale, 0.1f, 1000.0f);
-    ImGui::SliderFloat("Water", &waterHeight, 0.0f, 100.0f);
+
+    ImGui::Checkbox("Water", &renderWater);
+    if (renderWater)
+        ImGui::SliderFloat("Level", &waterHeight, 0.0f, 100.0f);
 
     ImGui::SeparatorText("Path find");
     ImGui::Indent();
 
-    static Curve curve(Curve::Interpolation::LINEAR);
     static int start[2] = {20, 20};
     static int end[2] = {300, 300};
-
-    ImGui::CurveEditor("Height metric", curve);
 
     ImGui::InputInt2("Start", start);
     ImGui::InputInt2("End", end);
@@ -118,7 +124,10 @@ void AppLogic::UI() {
             return PathFinder()
                 .From(start[0], start[1])
                 .To(end[0], end[1])
-                .With(curve, hm)
+                .Size(hm.Width(), hm.Height())
+                .SetConnectivity(PathFinder::Connectivity::C8)
+                .With(0.1f, Metric::Distance())
+                .With(10.f, Metric::Slope(hm, heightScale))
                 .Compute();
         });
     }

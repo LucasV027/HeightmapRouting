@@ -21,7 +21,7 @@ public:
     void MovePoint(int idx, float nx, float ny);
 
     void SetInterpolationMode(Interpolation newMode);
-    Interpolation GetInterpolationMode() const ;
+    Interpolation GetInterpolationMode() const;
 
     float operator()(float x) const;
     const std::vector<Point>& GetPoints() const;

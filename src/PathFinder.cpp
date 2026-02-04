@@ -10,6 +10,10 @@ struct Node {
     bool operator>(const Node& other) const { return cost > other.cost; }
 };
 
+PathFinder::Edge::Edge(const int x1, const int y1, const int x2, const int y2) :
+    x1(x1), y1(y1), x2(x2), y2(y2), d(std::hypotf(x2 - x1, y2 - y1)) {
+}
+
 PathFinder& PathFinder::From(const int x, const int y) {
     start.x = x;
     start.y = y;
@@ -22,8 +26,14 @@ PathFinder& PathFinder::To(const int x, const int y) {
     return *this;
 }
 
-PathFinder& PathFinder::With(const Curve& curve, const Mat<float>& values) {
-    metrics.emplace_back(curve, values);
+PathFinder& PathFinder::Size(const int x, const int y) {
+    size.x = x;
+    size.y = y;
+    return *this;
+}
+
+PathFinder& PathFinder::With(float weight, const CostFunction& f) {
+    metrics.emplace_back(weight, f);
     return *this;
 }
 
@@ -33,22 +43,11 @@ PathFinder& PathFinder::SetConnectivity(const Connectivity c) {
 }
 
 PathFinder::Path PathFinder::Compute() {
-    // Validation
-    if (start.x < 0 || start.y < 0 || end.x < 0 || end.y < 0)
+    if (!Validate())
         return {};
 
-    if (metrics.empty())
-        return {};
-
-    // Assume all metrics have the same dimensions
-    const auto s = metrics.front().second.Size();
-
-    // Bounds check
-    if (start.x >= s.x || start.y >= s.y || end.x >= s.x || end.y >= s.y)
-        return {};
-
-    Mat<float> costs(s, std::numeric_limits<float>::infinity());
-    Mat<uint8_t> parent(s, 0);
+    Mat<float> costs(size, std::numeric_limits<float>::infinity());
+    Mat<uint8_t> parent(size, 0);
     std::priority_queue<Node, std::vector<Node>, std::greater<>> pq;
 
     // Init
@@ -92,24 +91,19 @@ PathFinder::Path PathFinder::Compute() {
             continue;
 
         // Explore neighbors
-        for (int i = 0; i < static_cast<int>(connectivity); ++i) {
+        for (int i = 0; i < static_cast<int>(connectivity); i++) {
             const int nx = cx + dx[i];
             const int ny = cy + dy[i];
+            const auto edge = Edge(cx, cy, nx, ny);
 
-            // Bounds check
-            if (nx < 0 || nx >= s.x || ny < 0 || ny >= s.y)
+            if (!InBounds(nx, ny))
                 continue;
 
-            // Calculate edge cost (Average of all metrics)
+            // Calculate edge cost
             float edgeCost = 0.0f;
-            for (const auto& [curve, values] : metrics) {
-                const float vx = values(cx, cy);
-                const float vy = values(nx, ny);
-                const float dv = std::abs(vx - vy);
-
-                edgeCost += curve(dv);
+            for (const auto& [weight, costFunction] : metrics) {
+                edgeCost += weight * costFunction(edge);
             }
-            edgeCost /= metrics.size();
 
             const float newCost = currentCost + edgeCost;
 
@@ -138,4 +132,15 @@ PathFinder::Path PathFinder::Compute() {
     std::ranges::reverse(path);
 
     return path;
+}
+
+bool PathFinder::Validate() const {
+    return (start.x >= 0 && start.y >= 0 && end.x >= 0 && end.y >= 0) &&
+        (size.x > 0 && size.y > 0) &&
+        (start.x < size.x && start.y < size.y && end.x < size.x && end.y < size.y) &&
+        !metrics.empty();
+}
+
+bool PathFinder::InBounds(const int x, const int y) const {
+    return x >= 0 && x < size.x && y >= 0 && y < size.y;
 }
