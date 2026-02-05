@@ -61,7 +61,7 @@ void AppLogic::UpdateFlagTransforms() {
 }
 
 
-void AppLogic::Update() {
+void AppLogic::Update(const float dt) {
     const auto& window = App::GetWindow();
     if (window.WasResized()) {
         auto [w, h] = window.GetSize();
@@ -70,7 +70,7 @@ void AppLogic::Update() {
 
     UpdateFlagTransforms();
 
-    camera->Update(0.01f);
+    camera->Update(dt);
 
     terrain.heightScale = heightScale;
 

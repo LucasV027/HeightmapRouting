@@ -14,6 +14,7 @@ public:
 
     static App& Get();
     static Window& GetWindow();
+    static double Time(); // seconds
 
 private:
     static void InitOpenGL();

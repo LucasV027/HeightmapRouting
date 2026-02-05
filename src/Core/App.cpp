@@ -30,15 +30,20 @@ App::~App() {
 }
 
 void App::Run() const {
+    double lastFrame = Time();
+
     while (!window->ShouldClose()) {
-        appLogic->Update();
+        const double time = Time();
+        const double dt = time - lastFrame;
+        lastFrame = time;
+
+        appLogic->Update(static_cast<float>(dt));
 
         appLogic->Render();
 
         BeginUI();
         appLogic->UI();
         EndUI();
-
 
         window->SwapBuffers();
         window->PollEvents();
@@ -51,6 +56,10 @@ App& App::Get() {
 
 Window& App::GetWindow() {
     return *instance->window;
+}
+
+double App::Time() {
+    return glfwGetTime();
 }
 
 void App::InitOpenGL() {

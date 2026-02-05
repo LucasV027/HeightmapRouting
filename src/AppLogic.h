@@ -35,7 +35,7 @@ public:
     AppLogic();
     ~AppLogic();
 
-    void Update();
+    void Update(float dt);
     void Render();
     void UI();
 
