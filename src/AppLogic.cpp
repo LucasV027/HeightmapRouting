@@ -15,45 +15,28 @@
 AppLogic::AppLogic() {
     camera = FreeCamera::Create(glm::vec3(50.f), glm::vec3{0.0f, -1.0f, 0.01f}, 90.f);
 
-    const auto heightData = Image::FromFile(DATA_DIR "Terrain/Heights.png", Image::Format::I);
-    const auto vegetationData =
-        Image::FromFile(DATA_DIR "Terrain/Vegetation.png", Image::Format::I);
-    if (!heightData.has_value() || !vegetationData.has_value())
-        throw std::runtime_error("Failed to load image");
+    terrain = Terrain::Load(DATA_DIR "Terrain/Heights.png", //
+                            DATA_DIR "Terrain/Type.png",    //
+                            {100.0f, 100.0f},               // worldSize
+                            15.0f,                          // heightScale
+                            3.0f                            // waterHeight
+    );
 
-    heightMap = Mat<float>(*heightData);
-    auto vegetationMap = Mat<float>(*vegetationData);
 
-    tm = Mat<uint8_t>(heightMap.Size(), (uint8_t)TerrainType::NORMAL);
-    for (int y = 0; y < heightMap.Size().x; y++) {
-        for (int x = 0; x < heightMap.Size().x; x++) {
-            if (heightMap(x, y) * heightScale <= waterHeight) {
-                tm(x, y) = (uint8_t)TerrainType::WATER;
-            } else if (vegetationMap(x, y) <= 0.5f) {
-                tm(x, y) = (uint8_t)TerrainType::FOREST;
-            }
-        }
-    }
-
-    terrain.dim = {heightMap.Width(), heightMap.Height()};
-    terrain.heightScale = heightScale;
-    terrain.origin = {0.0f, 0.0f, 0.0f};
-    terrain.worldSize = {100.0f, 100.0f};
-
-    normals = Algorithm::NormalMap(heightMap, heightScale);
-
+    // --- Render ---
     waterProgram = Program::FromFile(DATA_DIR "Shaders/Water.vert", DATA_DIR "Shaders/Water.frag");
     terrainProgram =
         Program::FromFile(DATA_DIR "Shaders/Terrain.vert", DATA_DIR "Shaders/Terrain.frag");
     lineProgram = Program::FromFile(DATA_DIR "Shaders/Line.vert", DATA_DIR "Shaders/Line.frag");
     flagProgram = Program::FromFile(DATA_DIR "Shaders/Flag.vert", DATA_DIR "Shaders/Flag.frag");
 
-    heightTex = Texture::From(heightMap);
+    const auto normals = Algorithm::NormalMap(terrain.heightMap, terrain.heightScale);
+    heightTex = Texture::From(terrain.heightMap);
     normalTex = Texture::From(normals);
-    typeTex = Texture::From(tm);
+    typeTex = Texture::From(terrain.typeMap);
 
     flagMesh = Mesh::FromFile(DATA_DIR "Models/Flag.obj");
-    terrainMesh = Mesh::PlanarGrid(heightMap.Size(), terrain.origin, terrain.worldSize);
+    terrainMesh = Mesh::PlanarGrid(terrain.dimensions, terrain.origin, terrain.worldSize);
     waterMesh = Mesh::PlanarGrid({2u, 2u}, terrain.origin, terrain.worldSize);
 
     pathMesh.SetPrimitiveType(PrimitiveType::LINES).SetLayout({{GL_FLOAT, 3}});
@@ -64,19 +47,8 @@ AppLogic::AppLogic() {
 AppLogic::~AppLogic() = default;
 
 void AppLogic::UpdateFlagTransforms() {
-    // start
-    {
-        const float startHeight = heightMap(start.x, start.y);
-        const glm::vec3 startWorldPos = terrain.GridToWorld(start.x, start.y, startHeight);
-        flagTransforms[FLAG_START].Translate(startWorldPos);
-    }
-
-    // end
-    {
-        const float endHeight = heightMap(end.x, end.y);
-        const glm::vec3 endWorldPos = terrain.GridToWorld(end.x, end.y, endHeight);
-        flagTransforms[FLAG_END].Translate(endWorldPos);
-    }
+    flagTransforms[FLAG_START].Translate(terrain.GridToWorld(start.x, start.y));
+    flagTransforms[FLAG_END].Translate(terrain.GridToWorld(end.x, end.y));
 }
 
 
@@ -91,16 +63,15 @@ void AppLogic::Update(const float dt) {
 
     camera->Update(dt);
 
-    terrain.heightScale = heightScale;
 
     const glm::mat4 vp = camera->Proj() * camera->View();
 
     terrainProgram.SetUniform("uVP", vp);
     terrainProgram.SetUniform("uHeightScale", terrain.heightScale);
 
-    if (renderWater) {
+    if (terrain.waterHeight != -1.f) {
         waterProgram.SetUniform("uVP", vp);
-        waterProgram.SetUniform("uHeight", waterHeight);
+        waterProgram.SetUniform("uHeight", terrain.waterHeight);
     }
 
     lineProgram.SetUniform("uVP", vp);
@@ -118,8 +89,7 @@ void AppLogic::Update(const float dt) {
             indices.reserve((path.size() - 1) * 2);
 
             for (const auto& p : path) {
-                const float h = heightMap(p.x, p.y);
-                glm::vec3 w = terrain.GridToWorld(p.x, p.y, h);
+                glm::vec3 w = terrain.GridToWorldAboveWater(p.x, p.y);
                 w.y += 0.2f;
 
                 vertices.push_back(w.x);
@@ -152,7 +122,7 @@ void AppLogic::Render() {
     terrainMesh.Draw();
     terrainProgram.Unbind();
 
-    if (renderWater) {
+    if (terrain.waterHeight != -1.f) {
         waterProgram.Bind();
         waterMesh.Draw();
         waterProgram.Unbind();
@@ -183,17 +153,11 @@ void AppLogic::UI() {
     if (ImGui::Checkbox("Wireframe", &wireframe))
         glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 
-    ImGui::SliderFloat("Height scale", &heightScale, 0.1f, 1000.f);
-
-    ImGui::Checkbox("Water", &renderWater);
-    if (renderWater)
-        ImGui::SliderFloat("Water level", &waterHeight, 0.f, 100.f);
-
     ImGui::SeparatorText("Path finding");
     ImGui::InputInt2("Start", glm::value_ptr(start));
     ImGui::InputInt2("End", glm::value_ptr(end));
-    start = glm::clamp(start, glm::ivec2(0), terrain.dim - 1);
-    end = glm::clamp(end, glm::ivec2(0), terrain.dim - 1);
+    start = glm::clamp(start, glm::ivec2(0), terrain.dimensions - 1);
+    end = glm::clamp(end, glm::ivec2(0), terrain.dimensions - 1);
 
     if (ImGui::ComputeButton("Compute", jobRunning)) {
         jobRunning = true;
@@ -201,10 +165,10 @@ void AppLogic::UI() {
             return PathFinder()
                 .From(start.x, start.y)
                 .To(end.x, end.y)
-                .Size(heightMap.Width(), heightMap.Height())
+                .Size(terrain.heightMap.Width(), terrain.heightMap.Height())
                 .SetConnectivity(PathFinder::Connectivity::C8)
                 .With(0.1f, Metric::Distance())
-                .With(10.f, Metric::Slope(heightMap, terrain.heightScale))
+                .With(10.f, Metric::Slope(terrain.heightMap, terrain.heightScale))
                 .Compute();
         });
     }

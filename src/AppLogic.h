@@ -7,29 +7,8 @@
 #include "Core/Program.h"
 #include "Core/Texture.h"
 #include "Core/Transform.h"
-#include "Mat.h"
 #include "PathFinder.h"
-
-struct TerrainSpace {
-    glm::vec2 worldSize;
-    float heightScale;
-    glm::vec3 origin;
-    glm::ivec2 dim;
-
-    float CellSizeX() const { return worldSize.x / static_cast<float>(dim.x - 1); }
-    float CellSizeZ() const { return worldSize.y / static_cast<float>(dim.y - 1); }
-
-    glm::vec2 GridToWorldXZ(const int i, const int j) const {
-        return {origin.x + i * CellSizeX(), origin.z + j * CellSizeZ()};
-    }
-
-    float HeightToWorld(const float h) const { return origin.y + h * heightScale; }
-
-    glm::vec3 GridToWorld(const int i, const int j, const float h) const {
-        auto xz = GridToWorldXZ(i, j);
-        return {xz.x, HeightToWorld(h), xz.y};
-    }
-};
+#include "Terrain.h"
 
 class AppLogic {
 public:
@@ -60,23 +39,10 @@ private:
         glm::vec3{0.0f, 0.0f, 0.8f},
     };
 
-    TerrainSpace terrain;
+    // Terrain
+    Terrain terrain;
 
-    enum class TerrainType : uint8_t {
-        NORMAL = 0,
-        WATER = 1,
-        FOREST = 2,
-    };
-
-    Mat<float> heightMap;
-    Mat<uint8_t> tm;
-    Mat<glm::vec3> normals;
-
+    // Path find
     std::future<PathFinder::Path> pendingJob;
     bool jobRunning = false;
-
-    float heightScale = 15.f;
-    float waterHeight = 3.0f;
-
-    bool renderWater = true;
 };
