@@ -27,6 +27,7 @@ private:
 
     float sensitivity = 0.1f;
     float speed = 20.0f;
+    float boostSpeed = 3.5f;
     bool cursorEnabled = false;
 
     bool firstMouseInput = true;

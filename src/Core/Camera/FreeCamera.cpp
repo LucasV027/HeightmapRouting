@@ -42,9 +42,11 @@ void FreeCamera::HandleInput(const float dt) {
 
     const glm::vec3 forward = glm::normalize(glm::vec3(direction.x, 0.0f, direction.z));
     const glm::vec3 right = glm::normalize(glm::cross(forward, up));
-    const float moveSpeed = speed * dt;
+
+    float moveSpeed = speed * dt;
 
     // clang-format off
+    if (window.IsKeyPressed(GLFW_KEY_LEFT_SHIFT))   moveSpeed *= boostSpeed;
     if (window.IsKeyPressed(GLFW_KEY_W))            position += forward * moveSpeed;
     if (window.IsKeyPressed(GLFW_KEY_S))            position -= forward * moveSpeed;
     if (window.IsKeyPressed(GLFW_KEY_D))            position += right * moveSpeed;
