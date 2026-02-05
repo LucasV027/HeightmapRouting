@@ -7,6 +7,6 @@ uniform mat4 uVP;
 uniform mat4 uModel;
 
 void main() {
-    gl_Position =   uVP * uModel* vec4(aPos, 1.0);
+    gl_Position = uVP * uModel * vec4(aPos, 1.0);
 }
 

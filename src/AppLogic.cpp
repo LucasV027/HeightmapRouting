@@ -1,6 +1,7 @@
 #include "AppLogic.h"
 
 #include <future>
+#include <ranges>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -30,7 +31,7 @@ AppLogic::AppLogic() {
     normals = Algorithm::NormalMap(hm, heightScale);
 
     waterProgram = Program::FromFile(DATA_DIR "Shaders/Water.vert", DATA_DIR "Shaders/Water.frag");
-    terrainProgram = Program::FromFile(DATA_DIR "Shaders/Main.vert", DATA_DIR "Shaders/Main.frag");
+    terrainProgram = Program::FromFile(DATA_DIR "Shaders/Terrain.vert", DATA_DIR "Shaders/Terrain.frag");
     lineProgram = Program::FromFile(DATA_DIR "Shaders/Line.vert", DATA_DIR "Shaders/Line.frag");
     flagProgram = Program::FromFile(DATA_DIR "Shaders/Flag.vert", DATA_DIR "Shaders/Flag.frag");
 
@@ -50,14 +51,18 @@ AppLogic::~AppLogic() = default;
 
 void AppLogic::UpdateFlagTransforms() {
     // start
-    const float sh = hm(start.x, start.y);
-    const glm::vec3 startWorldPos = terrain.GridToWorld(start.x, start.y, sh);
-    flagsModels[0] = glm::translate(glm::mat4(1.f), startWorldPos);
+    {
+        const float startHeight = hm(start.x, start.y);
+        const glm::vec3 startWorldPos = terrain.GridToWorld(start.x, start.y, startHeight);
+        flagTransforms[FLAG_START].Translate(startWorldPos);
+    }
 
     // end
-    const float eh = hm(end.x, end.y);
-    const glm::vec3 endWorldPos = terrain.GridToWorld(end.x, end.y, eh);
-    flagsModels[1] = glm::translate(glm::mat4(1.f), endWorldPos);
+    {
+        const float endHeight = hm(end.x, end.y);
+        const glm::vec3 endWorldPos = terrain.GridToWorld(end.x, end.y, endHeight);
+        flagTransforms[FLAG_END].Translate(endWorldPos);
+    }
 }
 
 
@@ -145,10 +150,11 @@ void AppLogic::Render() {
     lineProgram.Unbind();
 
     flagProgram.Bind();
-    flagProgram.SetUniform("uModel", flagsModels[0]);
-    flagMesh.Draw();
-    flagProgram.SetUniform("uModel", flagsModels[1]);
-    flagMesh.Draw();
+    for (const auto& [transform, color] : std::views::zip(flagTransforms, flagColors)) {
+        flagProgram.SetUniform("uModel", transform.GetMatrix());
+        flagProgram.SetUniform("uColor", color);
+        flagMesh.Draw();
+    }
     flagProgram.Unbind();
 }
 

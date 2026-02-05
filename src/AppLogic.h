@@ -2,10 +2,11 @@
 
 #include <future>
 
+#include "Core/Camera/Camera.h"
 #include "Core/Mesh.h"
 #include "Core/Program.h"
 #include "Core/Texture.h"
-#include "Core/Camera/Camera.h"
+#include "Core/Transform.h"
 #include "Mat.h"
 #include "PathFinder.h"
 
@@ -49,10 +50,15 @@ private:
     Program terrainProgram, waterProgram, lineProgram, flagProgram;
     Texture heightTex, normalTex;
 
+    // Flags
     glm::ivec2 start = {20, 20};
     glm::ivec2 end = {300, 300};
-    // 0 = start | 1 = end
-    glm::mat4 flagsModels[2];
+    enum { FLAG_START = 0, FLAG_END = 1 };
+    std::array<Transform, 2> flagTransforms;
+    std::array<glm::vec3, 2> flagColors = {
+        glm::vec3{0.8f, 0.0f, 0.0f},
+        glm::vec3{0.0f, 0.0f, 0.8f},
+    };
 
     TerrainSpace terrain;
 
