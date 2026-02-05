@@ -1,16 +1,20 @@
-#include "Orbiter.h"
-
-#include <imgui.h>
+#include "OrbiterCamera.h"
 
 #include "Core/App.h"
 
-Orbiter::Orbiter(const glm::vec3& position, const float radius, const float aspect) :
-    position(position), radius(radius), aspect(aspect) {
-    ComputeProj();
-    ComputeView();
+OrbiterCamera::OrbiterCamera(const glm::vec3& position,
+                             const float radius,
+                             const float fovDeg,
+                             const float aspect) :
+    Camera(fovDeg, aspect), position(position), radius(radius) {
+
+    UpdateProj();
+    UpdateView(ComputeEyePos(), position, up);
 }
 
-void Orbiter::Update(const float dt) {
+void OrbiterCamera::Update(const float dt) {
+    Camera::Update(dt);
+
     const auto& window = App::GetWindow();
 
     const glm::vec3 forward(glm::sin(yaw), 0.0f, glm::cos(yaw));
@@ -36,36 +40,19 @@ void Orbiter::Update(const float dt) {
     pitch = glm::clamp(pitch, -glm::half_pi<float>() + 0.1f, glm::half_pi<float>() - 0.1f);
     radius = glm::clamp(radius, 0.5f, 1000.0f);
 
-    ComputeView();
+    UpdateView(ComputeEyePos(), position, up);
 }
 
-glm::mat4 Orbiter::View() const {
-    return view;
+std::unique_ptr<Camera>
+OrbiterCamera::Create(const glm::vec3& position, float radius, float fovDeg) {
+    return std::make_unique<OrbiterCamera>(position, radius, fovDeg,
+                                           App::GetWindow().GetAspectRatio());
 }
 
-glm::mat4 Orbiter::Proj() const {
-    return proj;
-}
-
-void Orbiter::UI() const {
-    ImGui::Text("Orbiter");
-    ImGui::Text("Position %.2f %.2f %.2f", position.x, position.y, position.z);
-    ImGui::Text("Radius   %.2f", radius);
-    ImGui::Text("Pitch    %.2f", pitch);
-    ImGui::Text("Yaw      %.2f", yaw);
-}
-
-void Orbiter::ComputeProj() {
-    proj = glm::perspective(glm::radians(fov), aspect, nearP, farP);
-}
-
-void Orbiter::ComputeView() {
-    const float camX = position.x + radius * glm::cos(pitch) * glm::sin(yaw);
-    const float camY = position.y + radius * glm::sin(pitch);
-    const float camZ = position.z + radius * glm::cos(pitch) * glm::cos(yaw);
-
-    const glm::vec3 eye(camX, camY, camZ);
-    constexpr glm::vec3 up(0.0f, 1.0f, 0.0f);
-
-    view = glm::lookAt(eye, position, up);
+glm::vec3 OrbiterCamera::ComputeEyePos() const {
+    return glm::vec3{
+        position.x + radius * glm::cos(pitch) * glm::sin(yaw),
+        position.y + radius * glm::sin(pitch),
+        position.z + radius * glm::cos(pitch) * glm::cos(yaw),
+    };
 }

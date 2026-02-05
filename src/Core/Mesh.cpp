@@ -175,11 +175,11 @@ Mesh Mesh::FromFile(const std::filesystem::path& path) {
 
     VertexLayout layout = {};
     if (attribs & Utils::Model::Attribs::POSITION)
-        layout.attributes.push_back({GL_FLOAT, 3});
+        layout.attributes.emplace_back(GL_FLOAT, 3);
     if (attribs & Utils::Model::Attribs::NORMAL)
-        layout.attributes.push_back({GL_FLOAT, 3});
+        layout.attributes.emplace_back(GL_FLOAT, 3);
     if (attribs & Utils::Model::Attribs::TEXCOORD)
-        layout.attributes.push_back({GL_FLOAT, 2});
+        layout.attributes.emplace_back(GL_FLOAT, 2);
 
     return std::move(Mesh()
                          .SetVertices(std::move(vertices))

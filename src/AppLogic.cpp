@@ -5,12 +5,16 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Algorithm.h"
+#include "Core/App.h"
+#include "Core/Camera/FreeCamera.h"
+#include "Core/Camera/OrbiterCamera.h"
 #include "Metric.h"
 #include "PathFinder.h"
 #include "UI.h"
 
 AppLogic::AppLogic() {
-    camera = std::make_unique<Orbiter>(glm::vec3{50.f, 0.f, 50.f}, 200.f, 1280.f / 720.f);
+    camera = FreeCamera::Create(glm::vec3(50.f), glm::vec3{0.0f, -1.0f, 0.01f}, 90.f);
+    // camera = OrbiterCamera::Create(glm::vec3{50.f, 0.0f, 50.f}, 200.f, 45.f);
 
     const auto img = Image::FromFile(DATA_DIR "Terrain/AlpsMontBlanc.png", Image::Format::I);
     if (!img.has_value())
@@ -58,6 +62,12 @@ void AppLogic::UpdateFlagTransforms() {
 
 
 void AppLogic::Update() {
+    const auto& window = App::GetWindow();
+    if (window.WasResized()) {
+        auto [w, h] = window.GetSize();
+        glViewport(0, 0, w, h);
+    }
+
     UpdateFlagTransforms();
 
     camera->Update(0.01f);
@@ -89,7 +99,7 @@ void AppLogic::Update() {
             indices.reserve((path.size() - 1) * 2);
 
             for (const auto& p : path) {
-                float h = hm(p.x, p.y);
+                const float h = hm(p.x, p.y);
                 glm::vec3 w = terrain.GridToWorld(p.x, p.y, h);
                 w.y += 0.2f;
 
@@ -131,6 +141,7 @@ void AppLogic::Render() {
     lineProgram.Bind();
     glLineWidth(3.f);
     pathMesh.Draw();
+    glLineWidth(1.f);
     lineProgram.Unbind();
 
     flagProgram.Bind();
@@ -143,9 +154,13 @@ void AppLogic::Render() {
 
 
 void AppLogic::UI() {
+    ImGui::SeparatorText("Info");
     ImGui::Text("%d FPS", static_cast<int>(ImGui::GetIO().Framerate));
 
-    camera->UI();
+    ImGui::SeparatorText("Render");
+    static bool wireframe = false;
+    if (ImGui::Checkbox("Wireframe", &wireframe))
+        glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 
     ImGui::SliderFloat("Height scale", &heightScale, 0.1f, 1000.f);
 
@@ -154,8 +169,6 @@ void AppLogic::UI() {
         ImGui::SliderFloat("Water level", &waterHeight, 0.f, 100.f);
 
     ImGui::SeparatorText("Path finding");
-    ImGui::Indent();
-
     ImGui::InputInt2("Start", glm::value_ptr(start));
     ImGui::InputInt2("End", glm::value_ptr(end));
     start = glm::clamp(start, glm::ivec2(0), terrain.dim - 1);
@@ -174,6 +187,4 @@ void AppLogic::UI() {
                 .Compute();
         });
     }
-
-    ImGui::Unindent();
 }

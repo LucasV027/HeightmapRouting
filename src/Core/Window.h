@@ -9,22 +9,50 @@
 
 class Window {
 public:
-    Window(int w, int h, const std::string& title);
+    enum class CursorMode {
+        NORMAL = GLFW_CURSOR_NORMAL,
+        DISABLED = GLFW_CURSOR_DISABLED,
+        HIDDEN = GLFW_CURSOR_HIDDEN,
+    };
+
+public:
+    Window(int width, int height, const std::string& title);
     ~Window();
 
-    GLFWwindow* Handle() const;
+    // Non-copyable, non-movable
+    Window(const Window&) = delete;
+    Window& operator=(const Window&) = delete;
+    Window(Window&&) = delete;
+    Window& operator=(Window&&) = delete;
+
+    // Core operations
+    void SwapBuffers() const;
+    void PollEvents() const;
     bool ShouldClose() const;
 
-    void Swap() const;
-    void Poll() const;
-
+    // Input queries
     bool IsKeyInState(int key, int state) const;
     bool IsKeyPressed(int key) const;
+    std::pair<double, double> GetMousePosition() const;
+
+    // Window properties
+    std::pair<int, int> GetSize() const;
+    float GetAspectRatio() const;
+    bool WasResized() const { return resized; }
+
+    // Settings
+    void SetCursorMode(CursorMode mode) const;
+
+    // Direct handle access (if needed for external libraries)
+    GLFWwindow* GetHandle() const { return window; }
 
 private:
-    static void GLFWErrorCallback(int error, const char* description);
+    static void OnGLFWError(int error, const char* description);
+    static void OnKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void OnWindowResize(GLFWwindow* window, int width, int height);
 
 private:
-    mutable std::vector<int> keyStates;
     GLFWwindow* window;
+    mutable std::vector<int> keyStates;
+    mutable bool resized = false;
 };

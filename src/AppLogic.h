@@ -5,8 +5,8 @@
 #include "Core/Mesh.h"
 #include "Core/Program.h"
 #include "Core/Texture.h"
+#include "Core/Camera/Camera.h"
 #include "Mat.h"
-#include "Orbiter.h"
 #include "PathFinder.h"
 
 struct TerrainSpace {
@@ -43,7 +43,7 @@ private:
     void UpdateFlagTransforms();
 
 private:
-    std::unique_ptr<Orbiter> camera;
+    std::unique_ptr<Camera> camera;
 
     Mesh terrainMesh, waterMesh, pathMesh, flagMesh;
     Program terrainProgram, waterProgram, lineProgram, flagProgram;

@@ -40,8 +40,8 @@ void App::Run() const {
         EndUI();
 
 
-        window->Swap();
-        window->Poll();
+        window->SwapBuffers();
+        window->PollEvents();
     }
 }
 
@@ -78,7 +78,7 @@ void App::InitImGui() const {
     ImGui::StyleColorsDark();
     ImGui::GetStyle().Alpha = 0.8f;
 
-    ImGui_ImplGlfw_InitForOpenGL(window->Handle(), true);
+    ImGui_ImplGlfw_InitForOpenGL(window->GetHandle(), true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
 }
 
