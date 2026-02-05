@@ -7,8 +7,9 @@ class Texture {
 public:
     // TODO: More formats
     enum class Format {
-        Float1,
-        Float3,
+        U8_1,
+        F32_1,
+        F32_3,
     };
 
     Texture() = default;
@@ -31,8 +32,9 @@ public:
         Format format;
 
         // clang-format off
-        if constexpr      (std::is_same_v<T, float>)     format = Format::Float1;
-        else if constexpr (std::is_same_v<T, glm::vec3>) format = Format::Float3;
+        if constexpr      (std::is_same_v<T, uint8_t>)   format = Format::U8_1;
+        else if constexpr (std::is_same_v<T, float>)     format = Format::F32_1;
+        else if constexpr (std::is_same_v<T, glm::vec3>) format = Format::F32_3;
         else static_assert(false, "Unsupported mat texture conversion");
         // clang-format on
 
@@ -47,10 +49,11 @@ private:
     static GLenum GetInternalFormat(Format format);
     static GLenum GetDataFormat(Format format);
     static GLenum GetDataType(Format format);
+    static GLenum GetFiltering(Format format);
 
 private:
     GLuint handle = GL_NONE;
     uint32_t width = 0;
     uint32_t height = 0;
-    Format format = Format::Float1;
+    Format format = Format::F32_1;
 };

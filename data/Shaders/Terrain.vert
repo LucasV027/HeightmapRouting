@@ -1,23 +1,33 @@
 #version 460 core
 
-layout (location = 0) in vec2 inPos;
-layout (location = 1) in vec2 inUV;
+layout(location = 0) in vec2 aPosition;
+layout(location = 1) in vec2 aTexCoord;
+
+layout(binding = 0) uniform sampler2D uHeightMap;
+layout(binding = 1) uniform sampler2D uNormalMap;
+layout(binding = 2) uniform usampler2D uTypeMap;
 
 uniform mat4 uVP;
 uniform float uHeightScale;
 
-layout (binding = 0) uniform sampler2D uHeightMap;
-layout (binding = 1) uniform sampler2D uNormalMap;
-
-out float vH;
-out vec3 vNormal;
+out VS_OUT {
+    float height;
+    vec3 normal;
+    vec3 worldPos;
+    flat uint type;
+} vs_out;
 
 void main() {
-    float h = texture(uHeightMap, inUV).r;
-    vec3 worldPos = vec3(inPos.x, h * uHeightScale, inPos.y);
+    float height = texture(uHeightMap, aTexCoord).r;
+    vec3 normal = texture(uNormalMap, aTexCoord).rgb;
+    uint type = texture(uTypeMap, aTexCoord).r;
 
-    vH = h;
-    vNormal = texture(uNormalMap, inUV).rgb;
+    vec3 worldPos = vec3(aPosition.x, height * uHeightScale, aPosition.y);
+
+    vs_out.height = height;
+    vs_out.normal = normal;
+    vs_out.worldPos = worldPos;
+    vs_out.type = type;
 
     gl_Position = uVP * vec4(worldPos, 1.0);
 }

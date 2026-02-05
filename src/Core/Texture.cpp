@@ -1,5 +1,7 @@
 #include "Texture.h"
 
+#include <utility>
+
 Texture::Texture(const uint32_t width,
                  const uint32_t height,
                  const Format format,
@@ -16,8 +18,10 @@ Texture::Texture(const uint32_t width,
         glTextureSubImage2D(handle, 0, 0, 0, width, height, dataFormat, dataType, data);
     }
 
-    glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    const auto filter = GetFiltering(format);
+    glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, filter);
+    glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, filter);
+
     glTextureParameteri(handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
@@ -62,30 +66,45 @@ void Texture::Cleanup() {
 }
 
 GLenum Texture::GetInternalFormat(const Format format) {
+    // clang-format off
     switch (format) {
-    case Format::Float1:
-        return GL_R32F;
-    case Format::Float3:
-        return GL_RGB32F;
+    case Format::U8_1:  return GL_R8UI;
+    case Format::F32_1: return GL_R32F;
+    case Format::F32_3: return GL_RGB32F;
     }
-    return GL_R32F;
+    std::unreachable();
+    // clang-format on
 }
 
 GLenum Texture::GetDataFormat(const Format format) {
+    // clang-format off
     switch (format) {
-    case Format::Float1:
-        return GL_RED;
-    case Format::Float3:
-        return GL_RGB;
+    case Format::U8_1:  return GL_RED_INTEGER;
+    case Format::F32_1: return GL_RED;
+    case Format::F32_3: return GL_RGB;
     }
-    return GL_RED;
+    std::unreachable();
+    // clang-format on
 }
 
 GLenum Texture::GetDataType(const Format format) {
+    // clang-format off
     switch (format) {
-    case Format::Float1:
-    case Format::Float3:
-        return GL_FLOAT;
+    case Format::U8_1: return GL_UNSIGNED_BYTE;
+    case Format::F32_1:
+    case Format::F32_3: return GL_FLOAT;
     }
-    return GL_FLOAT;
+    std::unreachable();
+    // clang-format on
+}
+
+GLenum Texture::GetFiltering(const Format format) {
+    // clang-format off
+    switch (format) {
+    case Format::U8_1:  return GL_NEAREST;
+    case Format::F32_1:
+    case Format::F32_3: return GL_LINEAR;
+    }
+    std::unreachable();
+    // clang-format on
 }

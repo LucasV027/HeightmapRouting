@@ -48,11 +48,11 @@ private:
 
     Mesh terrainMesh, waterMesh, pathMesh, flagMesh;
     Program terrainProgram, waterProgram, lineProgram, flagProgram;
-    Texture heightTex, normalTex;
+    Texture heightTex, normalTex, typeTex;
 
     // Flags
     glm::ivec2 start = {20, 20};
-    glm::ivec2 end = {300, 300};
+    glm::ivec2 end = {500, 300};
     enum { FLAG_START = 0, FLAG_END = 1 };
     std::array<Transform, 2> flagTransforms;
     std::array<glm::vec3, 2> flagColors = {
@@ -62,14 +62,21 @@ private:
 
     TerrainSpace terrain;
 
-    Mat<float> hm;
+    enum class TerrainType : uint8_t {
+        NORMAL = 0,
+        WATER = 1,
+        FOREST = 2,
+    };
+
+    Mat<float> heightMap;
+    Mat<uint8_t> tm;
     Mat<glm::vec3> normals;
 
     std::future<PathFinder::Path> pendingJob;
     bool jobRunning = false;
 
     float heightScale = 15.f;
-    float waterHeight = 1.0f;
+    float waterHeight = 3.0f;
 
-    bool renderWater = false;
+    bool renderWater = true;
 };
