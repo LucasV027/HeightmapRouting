@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <vector>
+#include <optional>
 
 
 struct Image {
