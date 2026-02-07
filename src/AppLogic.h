@@ -46,4 +46,5 @@ private:
     std::future<PathFinder::Path> pendingJob;
     bool jobRunning = false;
     PathFinder::Path path;
+    bool allowBridges = false;
 };

@@ -28,13 +28,15 @@ PathFinder::CostFunction Metric::Terrain(const Mat<Terrain::TileType>& typeMap) 
         const auto t1 = typeMap(e.x1, e.y1);
         const auto t2 = typeMap(e.x2, e.y2);
         // This is a road
-        if (e.d <= SQRT_2) {
+        if (!e.isBridgeCandidate) {
             if (t1 == Terrain::TileType::WATER || t2 == Terrain::TileType::WATER) {
                 return MAX_FLOAT;
             }
             if (t1 == Terrain::TileType::FOREST || t2 == Terrain::TileType::FOREST) {
                 return 10.f;
             }
+        } else {
+            return e.d * 20.f; // Bridge cost
         }
         return 0.0f;
     };

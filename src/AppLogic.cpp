@@ -166,6 +166,7 @@ void AppLogic::UI() {
     ImGui::InputInt2("End", glm::value_ptr(end));
     start = glm::clamp(start, glm::ivec2(0), terrain.dimensions - 1);
     end = glm::clamp(end, glm::ivec2(0), terrain.dimensions - 1);
+    ImGui::Checkbox("Bridges", &allowBridges);
 
     if (ImGui::ComputeButton("Compute", jobRunning)) {
         jobRunning = true;
@@ -175,6 +176,7 @@ void AppLogic::UI() {
                 .To(end.x, end.y)
                 .Size(terrain.heightMap.Width(), terrain.heightMap.Height())
                 .SetConnectivity(PathFinder::Connectivity::C8)
+                .AllowBridges(allowBridges)
                 .With(0.1f, Metric::Distance())
                 .With(10.f, Metric::Slope(terrain.heightMap, terrain.heightScale))
                 .With(1.f, Metric::Terrain(terrain.typeMap))

@@ -1,18 +1,16 @@
 #include "PathFinder.h"
 
 #include <algorithm>
-#include <queue>
+#include <random>
 #include <utility>
 
-struct Node {
-    int x, y;
-    float cost;
+#include <glm/ext/scalar_constants.hpp>
 
-    bool operator>(const Node& other) const { return cost > other.cost; }
-};
 
-PathFinder::Edge::Edge(const int x1, const int y1, const int x2, const int y2) :
-    x1(x1), y1(y1), x2(x2), y2(y2), d(std::hypotf(x2 - x1, y2 - y1)) {
+PathFinder::Edge::Edge(
+    const int x1, const int y1, const int x2, const int y2, const bool bridgeCandidate) :
+    x1(x1), y1(y1), x2(x2), y2(y2), d(std::hypotf(x2 - x1, y2 - y1)),
+    isBridgeCandidate(bridgeCandidate) {
 }
 
 PathFinder& PathFinder::From(const int x, const int y) {
@@ -43,13 +41,18 @@ PathFinder& PathFinder::SetConnectivity(const Connectivity c) {
     return *this;
 }
 
+PathFinder& PathFinder::AllowBridges(const bool allow) {
+    allowBridges = allow;
+    return *this;
+}
+
 PathFinder::Path PathFinder::Compute() {
     if (!Validate())
         return {};
 
     Mat<float> costs(size, std::numeric_limits<float>::infinity());
-    Mat<uint8_t> parent(size, 0);
-    std::priority_queue<Node, std::vector<Node>, std::greater<>> pq;
+    Mat<int> parent(size, -1);
+    PriorityQueue pq;
 
     // Init
     costs(start.x, start.y) = 0.0f;
@@ -79,6 +82,11 @@ PathFinder::Path PathFinder::Compute() {
     }
     // clang-format on
 
+    std::vector<Edge> bridgeCandidates;
+    if (allowBridges) {
+        bridgeCandidates = GenerateBridgeCandidates();
+    }
+
     while (!pq.empty()) {
         auto [cx, cy, currentCost] = pq.top();
         pq.pop();
@@ -91,28 +99,23 @@ PathFinder::Path PathFinder::Compute() {
         if (currentCost > costs(cx, cy))
             continue;
 
-        // Explore neighbors
+        const int parentIdx = Index(cx, cy);
+
+        // Explore neighbors (C4/C8 roads)
         for (int i = 0; i < static_cast<int>(connectivity); i++) {
             const int nx = cx + dx[i];
             const int ny = cy + dy[i];
-            const auto edge = Edge(cx, cy, nx, ny);
+            const auto edge = Edge(cx, cy, nx, ny, false);
 
-            if (!InBounds(nx, ny))
-                continue;
+            ProcessEdge(edge, currentCost, costs, parent, pq, parentIdx);
+        }
 
-            // Calculate edge cost
-            float edgeCost = 0.0f;
-            for (const auto& [weight, costFunction] : metrics) {
-                edgeCost += weight * costFunction(edge);
-            }
-
-            const float newCost = currentCost + edgeCost;
-
-            // Update if better path found
-            if (newCost < costs(nx, ny)) {
-                costs(nx, ny) = newCost;
-                parent(nx, ny) = i;
-                pq.push({nx, ny, newCost});
+        // Explore bridge candidates
+        if (allowBridges) {
+            for (const auto& bridge : bridgeCandidates) {
+                if (bridge.x1 == cx && bridge.y1 == cy) {
+                    ProcessEdge(bridge, currentCost, costs, parent, pq, parentIdx);
+                }
             }
         }
     }
@@ -126,8 +129,12 @@ PathFinder::Path PathFinder::Compute() {
     glm::ivec2 it(end.x, end.y);
     while (it.x != start.x || it.y != start.y) {
         path.points.emplace_back(it);
-        const uint8_t p = parent(it.x, it.y);
-        it -= glm::ivec2(dx[p], dy[p]);
+        const int p = parent(it.x, it.y);
+
+        const int px = p % size.x;
+        const int py = p / size.x;
+        it.x = px;
+        it.y = py;
     }
     path.points.emplace_back(start);
     std::ranges::reverse(path.points);
@@ -145,4 +152,72 @@ bool PathFinder::Validate() const {
 
 bool PathFinder::InBounds(const int x, const int y) const {
     return x >= 0 && x < size.x && y >= 0 && y < size.y;
+}
+
+int PathFinder::Index(const int x, const int y) const {
+    return y * size.x + x;
+}
+
+std::vector<PathFinder::Edge> PathFinder::GenerateBridgeCandidates() const {
+    std::vector<Edge> candidates;
+
+    thread_local std::mt19937 rng(std::random_device{}());
+
+    constexpr int minBridgeLength = 5;
+    constexpr int maxBridgeLength = 50;
+    const int numSamples = std::max(100, (size.x * size.y) / 100);
+
+    std::uniform_int_distribution<int> distX(0, size.x - 1);
+    std::uniform_int_distribution<int> distY(0, size.y - 1);
+    std::uniform_int_distribution<int> distLen(minBridgeLength, maxBridgeLength);
+
+    for (int i = 0; i < numSamples; i++) {
+        int x1 = distX(rng);
+        int y1 = distY(rng);
+        const int length = distLen(rng);
+
+        for (int dir = 0; dir < 8; dir++) {
+            const float angle = dir * glm::pi<float>() / 4.0f;
+            int x2 = x1 + static_cast<int>(length * std::cos(angle));
+            int y2 = y1 + static_cast<int>(length * std::sin(angle));
+
+            if (InBounds(x2, y2)) {
+                candidates.emplace_back(x1, y1, x2, y2, true);
+                candidates.emplace_back(x2, y2, x1, y1, true);
+            }
+        }
+    }
+
+    return candidates;
+}
+
+void PathFinder::ProcessEdge(const Edge& edge,
+                             const float currentCost,
+                             Mat<float>& costs,
+                             Mat<int>& parent,
+                             std::priority_queue<Node, std::vector<Node>, std::greater<>>& pq,
+                             const int parentIndex) {
+    const int nx = edge.x2;
+    const int ny = edge.y2;
+
+    if (!InBounds(nx, ny))
+        return;
+
+    // Calculate edge cost
+    float edgeCost = 0.0f;
+    for (const auto& [weight, costFunction] : metrics) {
+        edgeCost += weight * costFunction(edge);
+    }
+
+    if (std::isinf(edgeCost))
+        return;
+
+    const float newCost = currentCost + edgeCost;
+
+    // Update if better path found
+    if (newCost < costs(nx, ny)) {
+        costs(nx, ny) = newCost;
+        parent(nx, ny) = parentIndex;
+        pq.push({nx, ny, newCost});
+    }
 }
