@@ -163,8 +163,9 @@ std::vector<PathFinder::Edge> PathFinder::GenerateBridgeCandidates() const {
 
     thread_local std::mt19937 rng(std::random_device{}());
 
-    constexpr int minBridgeLength = 5;
-    constexpr int maxBridgeLength = 50;
+    // TODO: Make this configurable
+    constexpr int minBridgeLength = 50;
+    constexpr int maxBridgeLength = 200;
     const int numSamples = std::max(100, (size.x * size.y) / 100);
 
     std::uniform_int_distribution<int> distX(0, size.x - 1);
@@ -177,7 +178,7 @@ std::vector<PathFinder::Edge> PathFinder::GenerateBridgeCandidates() const {
         const int length = distLen(rng);
 
         for (int dir = 0; dir < 8; dir++) {
-            const float angle = dir * glm::pi<float>() / 4.0f;
+            const float angle = dir * 2.0f * glm::pi<float>() / 8.0f;
             int x2 = x1 + static_cast<int>(length * std::cos(angle));
             int y2 = y1 + static_cast<int>(length * std::sin(angle));
 

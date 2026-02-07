@@ -45,6 +45,15 @@ private:
     // Path find
     std::future<PathFinder::Path> pendingJob;
     bool jobRunning = false;
+    double jobTimeStartSec;
+    double jobTimeSec = 0.0;
     PathFinder::Path path;
     bool allowBridges = false;
+
+    float distanceWeight = 0.1f;
+    float terrainWeight = 10.f;
+    float slopeWeight = 1.0f;
+
+    PathFinder::Connectivity connectivity = PathFinder::Connectivity::C8;
+    static constexpr const char* CONNECTIVITY_NAMES[] = {"C-4", "C-8"};
 };

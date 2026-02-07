@@ -13,7 +13,7 @@ uint8_t& Image::operator()(const uint32_t x, const uint32_t y) {
     return data[y * width + x];
 }
 
-std::optional<Image> Image::FromFile(const std::filesystem::path& path, Format format) {
+std::optional<Image> Image::FromFile(const std::filesystem::path& path, const Format format) {
     int desiredChannels = 0;
     switch (format) {
     case Format::I:

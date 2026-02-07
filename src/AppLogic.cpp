@@ -21,13 +21,12 @@ Texture Texture::From<Terrain::TileType>(const Mat<Terrain::TileType>& mat) {
 AppLogic::AppLogic() {
     camera = FreeCamera::Create(glm::vec3(50.f), glm::vec3{0.0f, -1.0f, 0.01f}, 90.f);
 
-    terrain = Terrain::Load(DATA_DIR "Terrain/Heights.png", //
-                            DATA_DIR "Terrain/Type.png",    //
-                            {100.0f, 100.0f},               // worldSize
-                            15.0f,                          // heightScale
-                            3.0f                            // waterHeight
+    terrain = Terrain::Load(DATA_DIR "Terrain/River.png",     //
+                            DATA_DIR "Terrain/RiverType.png", //
+                            {100.0f, 100.0f},                 // worldSize
+                            15.0f,                            // heightScale
+                            3.0f                              // waterHeight
     );
-
 
     // --- Render ---
     waterProgram = Program::FromFile(DATA_DIR "Shaders/Water.vert", DATA_DIR "Shaders/Water.frag");
@@ -86,6 +85,7 @@ void AppLogic::Update(const float dt) {
     if (jobRunning &&
         pendingJob.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
         path = pendingJob.get();
+        jobTimeSec = App::Time() - jobTimeStartSec;
 
         if (path) {
             std::vector<float> vertices;
@@ -162,33 +162,63 @@ void AppLogic::UI() {
         glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 
     ImGui::SeparatorText("Path finding");
-    ImGui::InputInt2("Start", glm::value_ptr(start));
-    ImGui::InputInt2("End", glm::value_ptr(end));
+
+    ImGui::InputInt2("###", glm::value_ptr(start));
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
+    ImGui::SameLine();
+    ImGui::Text("Start");
+    ImGui::PopStyleColor();
+    ImGui::InputInt2("##", glm::value_ptr(end));
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 255, 255));
+    ImGui::Text("End");
+    ImGui::PopStyleColor();
     start = glm::clamp(start, glm::ivec2(0), terrain.dimensions - 1);
     end = glm::clamp(end, glm::ivec2(0), terrain.dimensions - 1);
+
+    ImGui::NewLine();
+
     ImGui::Checkbox("Bridges", &allowBridges);
+
+    int connectivityIndex = (connectivity == PathFinder::Connectivity::C4) ? 0 : 1;
+    ImGui::Combo("Connectivity", &connectivityIndex, CONNECTIVITY_NAMES,
+                 std::size(CONNECTIVITY_NAMES));
+    connectivity =
+        (connectivityIndex == 0) ? PathFinder::Connectivity::C4 : PathFinder::Connectivity::C8;
+
+    ImGui::NewLine();
+
+    ImGui::Text("Weights");
+    ImGui::InputFloat("Distance", &distanceWeight);
+    distanceWeight = std::max(distanceWeight, 0.0f);
+    ImGui::InputFloat("Slope", &slopeWeight);
+    slopeWeight = std::max(slopeWeight, 0.0f);
+    ImGui::InputFloat("Terrain", &terrainWeight);
+    terrainWeight = std::max(terrainWeight, 0.0f);
+    ImGui::NewLine();
 
     if (ImGui::ComputeButton("Compute", jobRunning)) {
         jobRunning = true;
         pendingJob = std::async(std::launch::async, [&]() -> PathFinder::Path {
+            jobTimeStartSec = App::Time();
             return PathFinder()
                 .From(start.x, start.y)
                 .To(end.x, end.y)
                 .Size(terrain.heightMap.Width(), terrain.heightMap.Height())
-                .SetConnectivity(PathFinder::Connectivity::C8)
+                .SetConnectivity(connectivity)
                 .AllowBridges(allowBridges)
-                .With(0.1f, Metric::Distance())
-                .With(10.f, Metric::Slope(terrain.heightMap, terrain.heightScale))
-                .With(1.f, Metric::Terrain(terrain.typeMap))
+                .With(distanceWeight, Metric::Distance())
+                .With(slopeWeight, Metric::Slope(terrain.heightMap, terrain.heightScale))
+                .With(terrainWeight, Metric::Terrain(terrain.typeMap))
                 .Compute();
         });
     }
 
     if (path) {
-        ImGui::Text("Found path with cost %.2f", path.cost);
+        ImGui::Text("Found path with cost %.2f (%.3f sec)", path.cost, jobTimeSec);
     } else {
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
-        ImGui::Text("No path found");
+        ImGui::Text("No path found (%.3f sec)", jobTimeSec);
         ImGui::PopStyleColor();
     }
 }
