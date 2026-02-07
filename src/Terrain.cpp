@@ -19,16 +19,16 @@ Terrain Terrain::Load(const std::filesystem::path& heightPath,
 
     Terrain ret;
     ret.heightMap = Mat<float>(*heightData);
-    ret.typeMap = Mat<uint8_t>(ret.heightMap.Size(), static_cast<uint8_t>(TileType::NORMAL));
+    ret.typeMap = Mat<TileType>(ret.heightMap.Size(), TileType::NORMAL);
 
     for (int y = 0; y < ret.heightMap.Size().x; y++) {
         for (int x = 0; x < ret.heightMap.Size().x; x++) {
             if (ret.heightMap(x, y) * heightScale <= waterHeight) {
-                ret.typeMap(x, y) = static_cast<uint8_t>(TileType::WATER);
+                ret.typeMap(x, y) = TileType::WATER;
 
                 // TODO: value map for each tile (for now 0 (black) = forest)
             } else if ((*typeData)(x, y) == 0) {
-                ret.typeMap(x, y) = static_cast<uint8_t>(TileType::FOREST);
+                ret.typeMap(x, y) = TileType::FOREST;
             }
         }
     }

@@ -12,10 +12,16 @@ public:
         int x2, y2;
         float d;
 
-        Edge( int x1,  int y1,  int x2,  int y2);
+        Edge(int x1, int y1, int x2, int y2);
     };
 
-    using Path = std::vector<glm::vec2>;
+    struct Path {
+        std::vector<glm::vec2> points;
+        float cost = -1.0f;
+
+        operator bool() const { return cost != -1.0f; }
+    };
+
     using CostFunction = std::function<float(Edge)>;
     struct Metric {
         float weight;

@@ -125,12 +125,13 @@ PathFinder::Path PathFinder::Compute() {
     Path path;
     glm::ivec2 it(end.x, end.y);
     while (it.x != start.x || it.y != start.y) {
-        path.emplace_back(it);
+        path.points.emplace_back(it);
         const uint8_t p = parent(it.x, it.y);
         it -= glm::ivec2(dx[p], dy[p]);
     }
-    path.emplace_back(start);
-    std::ranges::reverse(path);
+    path.points.emplace_back(start);
+    std::ranges::reverse(path.points);
+    path.cost = costs(end.x, end.y);
 
     return path;
 }

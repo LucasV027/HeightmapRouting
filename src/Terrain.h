@@ -6,7 +6,7 @@ struct Terrain {
     enum class TileType : uint8_t { NORMAL = 0, WATER = 1, FOREST = 2 };
 
     Mat<float> heightMap;
-    Mat<uint8_t> typeMap;
+    Mat<TileType> typeMap;
 
     glm::ivec2 dimensions;
     glm::vec3 origin;

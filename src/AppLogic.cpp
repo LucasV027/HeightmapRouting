@@ -8,9 +8,15 @@
 #include "Algorithm.h"
 #include "Core/App.h"
 #include "Core/Camera/FreeCamera.h"
+#include "Core/Utils.h"
 #include "Metric.h"
 #include "PathFinder.h"
 #include "UI.h"
+
+template <>
+Texture Texture::From<Terrain::TileType>(const Mat<Terrain::TileType>& mat) {
+    return {mat.Width(), mat.Height(), Format::U8_1, reinterpret_cast<const uint8_t*>(mat.Data())};
+}
 
 AppLogic::AppLogic() {
     camera = FreeCamera::Create(glm::vec3(50.f), glm::vec3{0.0f, -1.0f, 0.01f}, 90.f);
@@ -79,16 +85,16 @@ void AppLogic::Update(const float dt) {
 
     if (jobRunning &&
         pendingJob.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
-        const auto path = pendingJob.get();
+        path = pendingJob.get();
 
-        if (path.size() >= 2) {
+        if (path) {
             std::vector<float> vertices;
             std::vector<uint32_t> indices;
 
-            vertices.reserve(path.size() * 3);
-            indices.reserve((path.size() - 1) * 2);
+            vertices.reserve(path.points.size() * 3);
+            indices.reserve((path.points.size() - 1) * 2);
 
-            for (const auto& p : path) {
+            for (const auto& p : path.points) {
                 glm::vec3 w = terrain.GridToWorldAboveWater(p.x, p.y);
                 w.y += 0.2f;
 
@@ -97,7 +103,7 @@ void AppLogic::Update(const float dt) {
                 vertices.push_back(w.z);
             }
 
-            for (size_t i = 0; i < path.size() - 1; ++i) {
+            for (size_t i = 0; i < path.points.size() - 1; ++i) {
                 indices.push_back(static_cast<uint32_t>(i));
                 indices.push_back(static_cast<uint32_t>(i + 1));
             }
@@ -128,11 +134,13 @@ void AppLogic::Render() {
         waterProgram.Unbind();
     }
 
-    lineProgram.Bind();
-    glLineWidth(3.f);
-    pathMesh.Draw();
-    glLineWidth(1.f);
-    lineProgram.Unbind();
+    if (path) {
+        lineProgram.Bind();
+        glLineWidth(3.f);
+        pathMesh.Draw();
+        glLineWidth(1.f);
+        lineProgram.Unbind();
+    }
 
     flagProgram.Bind();
     for (const auto& [transform, color] : std::views::zip(flagTransforms, flagColors)) {
@@ -169,7 +177,16 @@ void AppLogic::UI() {
                 .SetConnectivity(PathFinder::Connectivity::C8)
                 .With(0.1f, Metric::Distance())
                 .With(10.f, Metric::Slope(terrain.heightMap, terrain.heightScale))
+                .With(1.f, Metric::Terrain(terrain.typeMap))
                 .Compute();
         });
+    }
+
+    if (path) {
+        ImGui::Text("Found path with cost %.2f", path.cost);
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
+        ImGui::Text("No path found");
+        ImGui::PopStyleColor();
     }
 }

@@ -13,6 +13,7 @@ public:
     };
 
     Texture() = default;
+    Texture(uint32_t width, uint32_t height, Format format, const void* data);
     ~Texture();
 
     Texture(const Texture&) = delete;
@@ -42,8 +43,6 @@ public:
     }
 
 private:
-    Texture(uint32_t width, uint32_t height, Format format, const void* data);
-
     void Cleanup();
 
     static GLenum GetInternalFormat(Format format);
